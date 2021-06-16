@@ -6,6 +6,7 @@ import Data.Array (deleteAt, length, snoc, updateAt, zip, (..))
 import Data.Int as I
 import Data.Number as N
 import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Traversable (sequence_)
 import Data.Tuple (uncurry)
 import Effect (Effect)
 import Effect.Class (class MonadEffect)
@@ -120,6 +121,7 @@ canvas w h = HH.canvas [ HP.id canvasID, HP.width w, HP.height h ]
 handleAction' :: forall output m. MonadEffect m => Action -> H.HalogenM State Action () output m Unit
 handleAction' action = do
   handleAction action
+  state <- H.get
   H.liftEffect $ void $ unsafePartial do
     Just canvas <- getCanvasElementById canvasID
     ctx <- getContext2D canvas
@@ -130,10 +132,8 @@ handleAction' action = do
       , width:  I.toNumber canvasWidth
       , height: I.toNumber canvasHeight
       }
-    C.setFillStyle ctx "#00F"
     C.setStrokeStyle ctx "#00F"
-    C.setLineWidth ctx 3.0
-    drawNumberLine ctx
+    drawNumberLine ctx state
 
 
 handleAction :: forall output m. Action -> H.HalogenM State Action () output m Unit
@@ -264,9 +264,36 @@ drawArrow ctx fromX fromY toX toY headLength = do
   C.stroke ctx
 
 
-drawNumberLine ctx = do
+drawNumberLine ctx numberLine = do
   let fromX = 0.0 + 10.0
   let toX = I.toNumber canvasWidth - 10.0
   let fromY = I.toNumber canvasHeight / 2.0
   let toY = fromY
-  drawArrow ctx fromX fromY toX toY 20.0
+  let headLength = 20.0
+
+  drawArrow ctx fromX fromY toX toY headLength
+
+  let startC = fromX + 10.0
+  let endC = toX - 2.0 * headLength
+
+  let start = numberLine.start
+  let end = numberLine.end
+  let step = numberLine.step
+
+  -- This is one tick short …
+  let nSteps = I.floor $ (end - start) / step
+  -- … but we start counting from 0 which adds one.
+  let steps = (map (\n -> I.toNumber n * step + start) $ 0..nSteps) `snoc` end
+  let stepsCoords = map (toCoord start end startC endC) steps
+
+  let tickLength = 10.0
+  sequence_ $ map (drawTick ctx fromY tickLength) stepsCoords
+  C.stroke ctx
+
+drawTick ctx y len coord = do
+  C.moveTo ctx coord (y - len)
+  C.lineTo ctx coord (y + len)
+  C.stroke ctx
+
+toCoord startN endN startC endC num =
+  startC + (num / (endN - startN)) * (endC - startC)
