@@ -133,6 +133,8 @@ handleAction' action = do
       , height: I.toNumber canvasHeight
       }
     C.setStrokeStyle ctx "#00F"
+    C.setLineWidth ctx 2.0
+    C.clearRect ctx { x : 0.0, y:  0.0, width: (I.toNumber canvasWidth), height: (I.toNumber canvasHeight)}
     drawNumberLine ctx state
 
 
