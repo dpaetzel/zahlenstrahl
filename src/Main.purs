@@ -12,6 +12,7 @@ import Graphics.Canvas as C
 import Halogen as H
 import Halogen.Aff as HA
 import Halogen.HTML as HH
+-- import DOM.HTML.Indexed as HI
 import Halogen.HTML.Properties as HP
 import Halogen.HTML.Events as HE
 import Halogen.VDom.Driver (runUI)
@@ -53,18 +54,12 @@ component =
 render :: forall m. State -> H.ComponentHTML Action () m
 render state =
   HH.div_ $
-    [ HH.div_
-      [ HH.text "Start", mkSettingsInput state.start ChangeStart
-      , HH.text "Ende", mkSettingsInput state.end ChangeEnd
-      ]
-    , HH.div_ [ HH.text "Step", mkSettingsInput state.step ChangeStep ]
-    , HH.div_
-      [ HH.text "Medium step"
-      , mkSettingsInput state.mediumStep ChangeMediumStep
-      , HH.text "Mini step"
-      , mkSettingsInput state.miniStep ChangeMiniStep
-      ]
-    ]
+    mkSettingsInput "Start" state.start ChangeStart
+    <> mkSettingsInput "End" state.end ChangeEnd
+    `snoc` HH.br_
+    <> mkSettingsInput "Step" state.step ChangeStep
+    <> mkSettingsInput "Medium step" state.mediumStep ChangeMediumStep
+    <> mkSettingsInput "Mini step" state.miniStep ChangeMiniStep
     <> annotations
     <>
     [ HH.button [ HE.onClick \_ -> Add ] [ HH.text "+" ]
@@ -150,24 +145,38 @@ mkAnnotationInput i a =
   HH.div_
     [ HH.text (show $ i + 1)
     , HH.input
-      [ HP.value (show a.place)
+      [ size numberSize
+      , HP.value (show a.place)
       , HE.onValueChange \p ->
          Edit i a { place = fromMaybe a.place $ N.fromString p }
       ]
     , HH.input
-      [ HP.value a.label
+      [ size 10
+      , HP.value a.label
       , HE.onValueChange \l ->
          Edit i a { label = l }
       ]
     , HH.button [ HE.onClick \_ -> Remove i ] [ HH.text "-" ]
     ]
 
+size :: forall r i. Int -> HH.IProp ( size :: Int | r ) i
+size = HH.prop (HH.PropName "size")
+
+numberSize :: Int
+numberSize = 6
+
 mkSettingsInput
   :: forall m.
-     Number -> (Number -> Action) -> HH.ComponentHTML Action () m
-mkSettingsInput oldVal action =
-  HH.input
-  [ HP.value (show oldVal)
-  , HE.onValueChange \s -> action (fromMaybe oldVal $ N.fromString s)
+     String -> Number -> (Number -> Action) ->
+     Array (HH.ComponentHTML Action () m)
+mkSettingsInput label oldVal action =
+  [ HH.label [ HP.for label ] [ HH.text label ]
+  , HH.input
+    [ HP.name label
+    -- TODO Find out why 'HP.size numberSize' does not work (and whether it
+    -- should).
+    , size numberSize
+    , HP.value (show oldVal)
+    , HE.onValueChange \s -> action (fromMaybe oldVal $ N.fromString s)
+    ]
   ]
-
