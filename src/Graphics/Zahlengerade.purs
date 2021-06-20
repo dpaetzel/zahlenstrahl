@@ -138,4 +138,4 @@ step numbers n = I.toNumber n * numbers.step + numbers.start
 
 toCoord numbers coords num =
   coords.start +
-    (num / (numbers.end - numbers.start)) * (coords.end - coords.start)
+    ((num - numbers.start) / (numbers.end - numbers.start)) * (coords.end - coords.start)
