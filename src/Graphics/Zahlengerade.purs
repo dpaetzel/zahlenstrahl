@@ -6,7 +6,7 @@ where
 
 import Prelude
 
-import Data.Array (deleteAt, length, snoc, updateAt, zip, zipWith, (..))
+import Data.Array (deleteAt, filter, length, notElem, snoc, updateAt, zip, zipWith, (..))
 import Data.Int as I
 import Data.Ord (signum)
 import Data.Traversable (sequence_)
@@ -58,12 +58,8 @@ drawNumberLine ctx cv numberLine = do
     }
   }
 
-  -- TODO Make adaptive
+  -- TODO Make adaptable
   let headLength = 15.0
-  -- TODO Make adaptive
-  -- TODO Move into drawArrow
-  let lineWidth = 2.0
-  C.setLineWidth ctx lineWidth
   drawArrow ctx arrow.from arrow.to headLength
 
   let coords = {
@@ -120,6 +116,8 @@ drawNumberLine ctx cv numberLine = do
         drawAnnotation a = do
           let x = toCoord numbers coords a.place
 
+          -- TODO Make adaptable
+          newLineWidth ctx 1.0
           C.moveTo ctx x y
           C.lineTo ctx x (y - markerLength)
           drawLabel ctx y (- markerLength) x a.label
@@ -128,6 +126,9 @@ drawNumberLine ctx cv numberLine = do
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
 drawArrow ctx from to headLength = do
+  -- TODO Make adaptable
+  newLineWidth ctx 2.0
+
   let angle = M.atan2 (to.y - from.y) (to.x - from.x)
 
   C.moveTo ctx from.x from.y
@@ -141,7 +142,11 @@ drawArrow ctx from to headLength = do
 
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
+-- TODO Add an only below switch
 drawTick ctx y len x = do
+  -- TODO Make adaptable
+  newLineWidth ctx 1.0
+
   C.moveTo ctx x (y - len)
   C.lineTo ctx x (y + len)
 
@@ -153,3 +158,9 @@ drawLabel ctx y len x text = do
   { width } <- C.measureText ctx text
   let fontHeight = 10.0
   C.fillText ctx text (x - width / 2.0) (y + len + signum len * fontHeight)
+
+newLineWidth ctx width = do
+  -- I need to stroke and begin a new path whenever I change the line width.
+  C.stroke ctx
+  C.beginPath ctx
+  C.setLineWidth ctx width
