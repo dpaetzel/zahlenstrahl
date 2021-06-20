@@ -86,7 +86,6 @@ drawNumberLine ctx cv numberLine = do
   drawTicks ctx false mediumTickLength y coords (numbers { step = numberLine.mediumStep })
   drawTicks ctx true tickLength y coords (numbers { step = numberLine.step })
 
-
   where
     drawTicks ctx labels tickLength y coords numbers = do
       -- This is one tick short …
@@ -98,10 +97,17 @@ drawNumberLine ctx cv numberLine = do
       sequence_ $ map (drawTick ctx y tickLength) stepsCoords
 
       when labels $ do
-        sequence_ $ zipWith (\xCoord num -> drawLabel ctx y tickLength xCoord (show num)) stepsCoords steps
+        sequence_ <<< zipWith
+            (\xCoord num -> drawLabel ctx y tickLength xCoord (show num))
+            stepsCoords
+          $ steps
 
+    step numbers n = I.toNumber n * numbers.step + numbers.start
 
-
+    toCoord numbers coords num =
+      coords.start
+        + ((num - numbers.start) / (numbers.end - numbers.start))
+          * (coords.end - coords.start)
 
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
@@ -118,6 +124,7 @@ drawArrow ctx from to headLength = do
   C.lineTo ctx (to.x - headLength * M.cos (angle + M.pi / 6.0))
     (to.y - headLength * M.sin (angle + M.pi / 6.0))
 
+
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
 drawTick ctx y len x = do
@@ -132,10 +139,3 @@ drawLabel ctx y len x text = do
   { width } <- C.measureText ctx text
   let fontHeight = 10.0
   C.fillText ctx text (x - width / 2.0) (y + len + fontHeight)
-
-step :: _
-step numbers n = I.toNumber n * numbers.step + numbers.start
-
-toCoord numbers coords num =
-  coords.start +
-    ((num - numbers.start) / (numbers.end - numbers.start)) * (coords.end - coords.start)
