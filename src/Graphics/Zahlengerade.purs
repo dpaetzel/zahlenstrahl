@@ -114,8 +114,6 @@ drawNumberLine ctx cv numberLine = do
 drawArrow ctx from to headLength = do
   let angle = M.atan2 (to.y - from.y) (to.x - from.x)
 
-  C.beginPath ctx
-
   C.moveTo ctx from.x from.y
   C.lineTo ctx to.x to.y
   C.moveTo ctx (to.x - headLength * M.cos (angle - M.pi / 6.0))
