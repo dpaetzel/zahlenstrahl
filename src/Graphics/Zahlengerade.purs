@@ -79,28 +79,34 @@ drawNumberLine ctx cv numberLine = do
   let miniTickLength = 5.0
   let markerLength = 30.0
 
-  C.setLineWidth ctx lineWidth
-  drawTicks ctx false miniTickLength y coords (numbers { step = numberLine.miniStep })
-  drawTicks ctx false mediumTickLength y coords (numbers { step = numberLine.mediumStep })
-  drawTicks ctx true tickLength y coords (numbers { step = numberLine.step })
+  drawnSteps <- drawTicks ctx true tickLength y coords (numbers { step = numberLine.step }) []
+  drawnSteps2 <- drawTicks ctx false mediumTickLength y coords (numbers { step = numberLine.mediumStep }) drawnSteps
+  _ <- drawTicks ctx false miniTickLength y coords (numbers { step = numberLine.miniStep }) drawnSteps2
 
   drawAnnotations ctx markerLength y coords numbers numberLine.annotations
 
   where
-    drawTicks ctx labels tickLength y coords numbers = do
+    -- | Returns the coordinates of the ticks drawn (so future calls to
+    -- | 'drawTicks' can filter these).
+    drawTicks ctx labels tickLength y coords numbers alreadyDrawn = do
       -- This is one tick short …
       let nSteps = I.floor $ (numbers.end - numbers.start) / numbers.step
       -- … but we start counting from 0 which adds one.
       let steps = (map (step numbers) $ 0..nSteps) `snoc` numbers.end
       let stepsCoords = map (toCoord numbers coords) steps
+      -- We filter coordinates instead of steps due to aliasing (if two
+      -- different steps map to the same coordinate, neither should be redrawn).
+      let stepsCoords_ = filter (_ `notElem` alreadyDrawn) stepsCoords
 
-      sequence_ $ map (drawTick ctx y tickLength) stepsCoords
+      sequence_ $ map (drawTick ctx y tickLength) stepsCoords_
 
       when labels $ do
         sequence_ <<< zipWith
             (\xCoord num -> drawLabel ctx y tickLength xCoord (show num))
             stepsCoords
           $ steps
+
+      pure (alreadyDrawn <> stepsCoords_)
 
     step numbers n = I.toNumber n * numbers.step + numbers.start
 
