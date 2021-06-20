@@ -8,6 +8,7 @@ import Prelude
 
 import Data.Array (deleteAt, length, snoc, updateAt, zip, zipWith, (..))
 import Data.Int as I
+import Data.Ord (signum)
 import Data.Traversable (sequence_)
 import Effect (Effect)
 import Math as M
@@ -80,11 +81,14 @@ drawNumberLine ctx cv numberLine = do
   let tickLength = 15.0
   let mediumTickLength = 10.0
   let miniTickLength = 5.0
+  let markerLength = 30.0
 
   C.setLineWidth ctx lineWidth
   drawTicks ctx false miniTickLength y coords (numbers { step = numberLine.miniStep })
   drawTicks ctx false mediumTickLength y coords (numbers { step = numberLine.mediumStep })
   drawTicks ctx true tickLength y coords (numbers { step = numberLine.step })
+
+  drawAnnotations ctx markerLength y coords numbers numberLine.annotations
 
   where
     drawTicks ctx labels tickLength y coords numbers = do
@@ -108,6 +112,18 @@ drawNumberLine ctx cv numberLine = do
       coords.start
         + ((num - numbers.start) / (numbers.end - numbers.start))
           * (coords.end - coords.start)
+
+    drawAnnotations ctx markerLength y coords numbers annotations = do
+      sequence_ <<< map drawAnnotation $ annotations
+      where
+        -- TODO unify wtih `when labels` part above
+        drawAnnotation a = do
+          let x = toCoord numbers coords a.place
+
+          C.moveTo ctx x y
+          C.lineTo ctx x (y - markerLength)
+          drawLabel ctx y (- markerLength) x a.label
+
 
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
@@ -136,4 +152,4 @@ drawTick ctx y len x = do
 drawLabel ctx y len x text = do
   { width } <- C.measureText ctx text
   let fontHeight = 10.0
-  C.fillText ctx text (x - width / 2.0) (y + len + fontHeight)
+  C.fillText ctx text (x - width / 2.0) (y + len + signum len * fontHeight)
