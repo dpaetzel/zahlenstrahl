@@ -74,10 +74,10 @@ drawNumberLine ctx cv numberLine = do
   }
 
   -- TODO Make adaptable
-  let tickLength = 15.0
+  let tickLength = 16.0
   let mediumTickLength = 10.0
-  let miniTickLength = 5.0
-  let markerLength = 30.0
+  let miniTickLength = 4.0
+  let markerLength = 40.0
 
   drawnSteps <- drawTicks ctx true tickLength y coords (numbers { step = numberLine.step }) []
   drawnSteps2 <- drawTicks ctx false mediumTickLength y coords (numbers { step = numberLine.mediumStep }) drawnSteps
@@ -118,7 +118,7 @@ drawNumberLine ctx cv numberLine = do
     drawAnnotations ctx markerLength y coords numbers annotations = do
       sequence_ <<< map drawAnnotation $ annotations
       where
-        -- TODO unify wtih `when labels` part above
+        -- TODO unify with `when labels` part above
         drawAnnotation a = do
           let x = toCoord numbers coords a.place
 
