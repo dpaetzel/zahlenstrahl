@@ -93,7 +93,7 @@ drawNumberLine ctx cv numberLine = do
       -- This is one tick short …
       let nSteps = I.floor $ (numbers.end - numbers.start) / numbers.step
       -- … but we start counting from 0 which adds one.
-      let steps = (map (step numbers) $ 0..nSteps) `snoc` numbers.end
+      let steps = (map (step numbers) $ 0..nSteps)
       let stepsCoords = map (toCoord numbers coords) steps
       -- We filter coordinates instead of steps due to aliasing (if two
       -- different steps map to the same coordinate, neither should be redrawn).
