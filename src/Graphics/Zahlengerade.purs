@@ -102,11 +102,13 @@ drawNumberLine ctx cv numberLine = do
 
       when labels $ do
         sequence_ <<< zipWith
-            (\xCoord num -> drawLabel ctx y tickLength xCoord (show num))
+            (\xCoord num -> drawLabel ctx y tickLength xCoord (labelize num))
             stepsCoords
           $ steps
 
       pure (alreadyDrawn <> stepsCoords_)
+
+    labelize num = if num - M.floor num == 0.0 then show (I.floor num) else show num
 
     step numbers n = I.toNumber n * numbers.step + numbers.start
 
