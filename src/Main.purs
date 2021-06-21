@@ -2,7 +2,7 @@ module Main where
 
 import Prelude
 
-import Data.Array (deleteAt, length, snoc, updateAt, zipWith, (..))
+import Data.Array (cons, deleteAt, length, snoc, updateAt, zipWith, (..))
 import Data.Number as N
 import Data.Maybe (Maybe(..), fromMaybe)
 import Effect (Effect)
@@ -53,32 +53,56 @@ component =
 render :: forall m. State -> H.ComponentHTML Action () m
 render state =
   HH.div_ $
-    mkSettingsInput "Start" state.start ChangeStart
-    <> mkSettingsInput "End" state.end ChangeEnd
-    `snoc` HH.br_
-    <> mkSettingsInput "Step" state.step ChangeStep
-    <> mkSettingsInput "Medium step" state.mediumStep ChangeMediumStep
-    <> mkSettingsInput "Mini step" state.miniStep ChangeMiniStep
-    `snoc` HH.ol_ annotations
+    [ HH.div_ $
+      [ HH.h2_ [ HH.text "Zahlenbereich" ] ]
+      <> mkSettingsInput "Beginn" state.start ChangeStart
+      <> mkSettingsInput "Ende" state.end ChangeEnd
+    ]
     <>
-    [ HH.button [ HE.onClick \_ -> Add ] [ HH.text "+" ]
-    -- , HH.div_ [ HH.text $ show state ]
-    , HH.div_ [ mkCanvas defCanvas ]
+    [ HH.div_ $
+      [ HH.h2_ [ HH.text "Skala" ] ]
+      <> mkSettingsInput "Schritt" state.step ChangeStep
+      <> mkSettingsInput "Mittelschritt" state.mediumStep ChangeMediumStep
+      <> mkSettingsInput "Minischritt" state.miniStep ChangeMiniStep
+    ]
+    <>
+    [ HH.div_ $
+      [ HH.h2_ [ HH.text "Markierungen" ] ]
+      `snoc` HH.table_ (annotationsHeader `cons` annotations `snoc` addButton)
+    ]
+    <>
+    [ HH.div_ [ mkCanvas defCanvas ]
     ]
     where
+      annotationsHeader :: HH.HTML _ _
+      annotationsHeader = HH.tr_ [ HH.th_ [ HH.text "Stelle" ]
+                                 , HH.th_ [ HH.text "Beschriftung" ]
+                                 , HH.th_ []
+                                 ]
       annotations :: Array (HH.HTML _ _)
-      annotations = map (HH.li_ <<< pure)
-        $ zipWith
-          mkAnnotationInput
-          (0..(length state.annotations))
-          state.annotations
+      annotations = zipWith
+        mkAnnotationInput
+        (0..(length state.annotations))
+        state.annotations
+      addButton =
+        HH.tr_
+        [ HH.td_ []
+        , HH.td_ []
+        , HH.td_
+          [ HH.button
+            [ HE.onClick \_ -> Add
+            , HP.classes [ HH.ClassName "fa fa-plus"]
+            ]
+            []
+          ]
+        ]
 
 
 canvasID :: String
 canvasID = "canvas"
 
 defCanvas :: Canvas
-defCanvas = { width : 600, height : 100 }
+defCanvas = { width : 1000, height : 200 }
 
 handleAction'
   :: forall output m.
@@ -148,18 +172,28 @@ mkAnnotationInput
   :: forall m.
      Int -> Annotation -> HH.ComponentHTML Action () m
 mkAnnotationInput i a =
-  HH.div_
-    [ HH.input
-      [ HP.value (show a.place)
-      , HE.onValueChange \p ->
-         Edit i a { place = fromMaybe a.place $ N.fromString p }
+  HH.tr_
+    [ HH.td_
+      [ HH.input
+        [ HP.value (show a.place)
+        , HE.onValueChange \p ->
+           Edit i a { place = fromMaybe a.place $ N.fromString p }
+        ]
       ]
-    , HH.input
-      [ HP.value a.label
-      , HE.onValueChange \l ->
-         Edit i a { label = l }
+    , HH.td_
+      [ HH.input
+        [ HP.value a.label
+        , HE.onValueChange \l ->
+        Edit i a { label = l }
+        ]
       ]
-    , HH.button [ HE.onClick \_ -> Remove i ] [ HH.text "−" ]
+    , HH.td_
+      [ HH.button
+        [ HE.onClick \_ -> Remove i
+        , HP.classes [ HH.ClassName "fa fa-minus"]
+        ]
+        []
+      ]
     ]
 
 mkSettingsInput
@@ -167,7 +201,7 @@ mkSettingsInput
      String -> Number -> (Number -> Action) ->
      Array (HH.ComponentHTML Action () m)
 mkSettingsInput label oldVal action =
-  [ HH.label [ HP.for label ] [ HH.text label ]
+  [ HH.label [ HP.for label ] [ HH.text $ label <> ":" ]
   , HH.input
     [ HP.name label
     , HP.value (show oldVal)
