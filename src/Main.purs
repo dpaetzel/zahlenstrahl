@@ -62,7 +62,7 @@ render state =
     `snoc` HH.ol_ annotations
     <>
     [ HH.button [ HE.onClick \_ -> Add ] [ HH.text "+" ]
-    , HH.div_ [ HH.text $ show state ]
+    -- , HH.div_ [ HH.text $ show state ]
     , HH.div_ [ mkCanvas defCanvas ]
     ]
     where
