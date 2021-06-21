@@ -162,8 +162,9 @@ drawTick ctx y len x = do
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
 drawLabel ctx y len x text = do
   { width } <- C.measureText ctx text
-  let fontHeight = 10.0
-  C.fillText ctx text (x - width / 2.0) (y + len + signum len * fontHeight)
+  let fontHeight = 20
+  C.setFont ctx (show fontHeight <> "px Arial")
+  C.fillText ctx text (x - width / 2.0) (y + len + signum len * I.toNumber fontHeight)
 
 newLineWidth ctx width = do
   -- I need to stroke and begin a new path whenever I change the line width.
