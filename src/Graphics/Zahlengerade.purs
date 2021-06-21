@@ -65,7 +65,7 @@ drawNumberLine ctx cv numberLine = do
 
   let coords = {
     start : arrow.from.x + 10.0,
-    end : arrow.to.x - 3.0 * headLength
+    end : arrow.to.x - 1.2 * headLength
   }
 
   let numbers = {
