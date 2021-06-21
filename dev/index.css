@@ -1,0 +1,123 @@
+/* Reset */
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td,
+article, aside, canvas, details, embed,
+figure, figcaption, footer, header, hgroup,
+menu, nav, output, ruby, section, summary,
+time, mark, audio, video {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: 100%;
+    font: inherit;
+    vertical-align: baseline;
+}
+* {
+    box-sizing: border-box;
+}
+
+
+
+/* Variables */
+:root {
+    --desktop-font-size: 1.3rem/1.5;
+    --mobile-font-size: 1.1rem/1.4;
+    --text-color: #2d2d2d;
+    --link-color: blue;
+    --primary-color: lightsteelblue;
+    --secondary-color: aliceblue;
+    --tertiary-color: whitesmoke;
+}
+
+
+
+
+/* Typography */
+body {
+    color: var(--text-color);
+}
+
+body, input {
+    font: var(--desktop-font-size) -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto, Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji", "Segoe UI Symbol";
+}
+
+h1,h2,h3,h4,h5,h6,p,blockquote,dl,img,figure {
+    margin: 1rem 0;
+}
+
+h1,h2,h3,h4,h5,h6 { font-weight: bold; line-height: 1.2; }
+h1 { font-size: 150%; }
+h2 { font-size: 120%; }
+
+header h1 { border-bottom: 1px solid; }
+
+strong, time, b { font-weight: bold; }
+em, dfn, i { font-style: italic; }
+sub { font-size: 60%; vertical-align: bottom; }
+small { font-size: 80%; }
+
+
+/* Elements */
+hr {
+    background: var(--text-color);
+    border: 0;
+    height: 1px;
+    margin: 2rem 0;
+}
+
+ul {
+    list-style: none;
+    margin: 2rem 0;
+    padding-left: 2rem;
+}
+
+dl dd { padding-left: 2rem; }
+
+label {
+    padding-left: 2rem;
+    padding-right: 1rem;
+}
+
+input {
+    appearance: none;
+    border: 1px solid var(--text-color);
+    border-radius: 10px;
+    margin: 0.5rem 0;
+    padding: 0.8rem;
+    width: 8rem;
+}
+
+input:focus, input:active {
+    background-color: var(--secondary-color);
+    border-color: var(--link-color);
+}
+
+
+canvas {
+    align: center;
+}
+
+
+button {
+    margin: 0.5rem 0 1rem 1rem;
+    padding: 0.5rem 0.5rem;
+}
+
+td {
+    margin: 0 1rem;
+}
+
+/* Mobile Styling */
+@media screen and (max-width: 50rem) {
+    body, input {
+        font: var(--mobile-font-size) -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto, Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji", "Segoe UI Symbol"
+    }
+    table { table-layout: auto; }
+}
