@@ -169,7 +169,8 @@ drawLabel ctx y len x text = do
   { width } <- C.measureText ctx text
   let fontHeight = 20
   C.setFont ctx (show fontHeight <> "px Arial")
-  C.fillText ctx text (x - width / 2.0) (y + len + signum len * I.toNumber fontHeight)
+  C.fillText ctx text (x - width / 2.0) (y + len +
+    if len > 0.0 then I.toNumber fontHeight else - I.toNumber fontHeight / 4.0)
 
 newLineWidth ctx width = do
   -- I need to stroke and begin a new path whenever I change the line width.
