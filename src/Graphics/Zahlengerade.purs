@@ -14,6 +14,7 @@ import Effect (Effect)
 import Math as M
 import Graphics.Canvas as C
 import Graphics.Zahlengerade.Canvas
+import Data.String as S
 
 type Annotation = { place :: Number, label :: String }
 
@@ -108,7 +109,9 @@ drawNumberLine ctx cv numberLine = do
 
       pure (alreadyDrawn <> stepsCoords_)
 
-    labelize num = if num - M.floor num == 0.0 then show (I.floor num) else show num
+    labelize num =
+      S.replace (S.Pattern ".") (S.Replacement ",") $
+      if num - M.floor num == 0.0 then show (I.floor num) else show num
 
     step numbers n = I.toNumber n * numbers.step + numbers.start
 

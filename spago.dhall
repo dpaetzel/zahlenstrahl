@@ -14,6 +14,7 @@
   , "prelude"
   , "psci-support"
   , "record"
+  , "strings"
   , "tuples"
   ]
 , packages = ./packages.dhall
