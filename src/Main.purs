@@ -150,25 +150,17 @@ mkAnnotationInput
 mkAnnotationInput i a =
   HH.div_
     [ HH.input
-      [ size numberSize
-      , HP.value (show a.place)
+      [ HP.value (show a.place)
       , HE.onValueChange \p ->
          Edit i a { place = fromMaybe a.place $ N.fromString p }
       ]
     , HH.input
-      [ size 10
-      , HP.value a.label
+      [ HP.value a.label
       , HE.onValueChange \l ->
          Edit i a { label = l }
       ]
     , HH.button [ HE.onClick \_ -> Remove i ] [ HH.text "-" ]
     ]
-
-size :: forall r i. Int -> HH.IProp ( size :: Int | r ) i
-size = HH.prop (HH.PropName "size")
-
-numberSize :: Int
-numberSize = 6
 
 mkSettingsInput
   :: forall m.
@@ -178,9 +170,6 @@ mkSettingsInput label oldVal action =
   [ HH.label [ HP.for label ] [ HH.text label ]
   , HH.input
     [ HP.name label
-    -- TODO Find out why 'HP.size numberSize' does not work (and whether it
-    -- should).
-    , size numberSize
     , HP.value (show oldVal)
     , HE.onValueChange \s -> action (fromMaybe oldVal $ N.fromString s)
     ]
