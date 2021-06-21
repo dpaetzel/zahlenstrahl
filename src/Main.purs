@@ -159,7 +159,7 @@ mkAnnotationInput i a =
       , HE.onValueChange \l ->
          Edit i a { label = l }
       ]
-    , HH.button [ HE.onClick \_ -> Remove i ] [ HH.text "-" ]
+    , HH.button [ HE.onClick \_ -> Remove i ] [ HH.text "−" ]
     ]
 
 mkSettingsInput
