@@ -50,11 +50,11 @@ drawNumberLine ctx cv numberLine = do
   let y = I.toNumber cv.height / 2.0
   let arrow = {
     from : {
-        x : 0.0 + 10.0,
+        x : 0.0 + 20.0,
         y : y
     },
     to : {
-        x : I.toNumber cv.width - 10.0,
+        x : I.toNumber cv.width - 20.0,
         y : y
     }
   }
