@@ -2,10 +2,9 @@ module Main where
 
 import Prelude
 
-import Data.Array (deleteAt, length, snoc, updateAt, zip, (..))
+import Data.Array (deleteAt, length, snoc, updateAt, zipWith, (..))
 import Data.Number as N
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Tuple (uncurry)
 import Effect (Effect)
 import Effect.Class (class MonadEffect)
 import Graphics.Canvas as C
@@ -60,16 +59,19 @@ render state =
     <> mkSettingsInput "Step" state.step ChangeStep
     <> mkSettingsInput "Medium step" state.mediumStep ChangeMediumStep
     <> mkSettingsInput "Mini step" state.miniStep ChangeMiniStep
-    <> annotations
+    `snoc` HH.ol_ annotations
     <>
     [ HH.button [ HE.onClick \_ -> Add ] [ HH.text "+" ]
     , HH.div_ [ HH.text $ show state ]
     , HH.div_ [ mkCanvas defCanvas ]
     ]
     where
-      annotations = map
-        (uncurry mkAnnotationInput)
-        (zip (0..(length state.annotations)) state.annotations)
+      annotations :: Array (HH.HTML _ _)
+      annotations = map (HH.li_ <<< pure)
+        $ zipWith
+          mkAnnotationInput
+          (0..(length state.annotations))
+          state.annotations
 
 
 canvasID :: String
@@ -143,8 +145,7 @@ mkAnnotationInput
      Int -> Annotation -> HH.ComponentHTML Action () m
 mkAnnotationInput i a =
   HH.div_
-    [ HH.text (show $ i + 1)
-    , HH.input
+    [ HH.input
       [ size numberSize
       , HP.value (show a.place)
       , HE.onValueChange \p ->
