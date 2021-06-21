@@ -77,8 +77,8 @@ drawNumberLine ctx cv numberLine = do
   -- TODO Make adaptable
   let tickLength = 16.0
   let mediumTickLength = 10.0
-  let miniTickLength = 4.0
-  let markerLength = 40.0
+  let miniTickLength = 6.0
+  let markerLength = 50.0
 
   drawnSteps <- drawTicks ctx true tickLength y coords (numbers { step = numberLine.step }) []
   drawnSteps2 <- drawTicks ctx false mediumTickLength y coords (numbers { step = numberLine.mediumStep }) drawnSteps
