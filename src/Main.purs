@@ -101,6 +101,10 @@ handleAction' action = do
 
     C.stroke ctx
 
+    -- TODO Add download support. This probably requires a component output and
+    -- another component has to listen to that and display a download button.
+    -- url <- C.canvasToDataURL canvas
+
 
 handleAction
   :: forall output m.
