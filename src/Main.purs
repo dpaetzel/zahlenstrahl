@@ -56,8 +56,7 @@ render state =
     [ HH.div_ $
       [ mkRow
         [ mkColumn $
-          HH.div
-          [ HP.classes [ BS.mxAuto, HH.ClassName "canvas-width" ] ]
+          HH.div_
           [ mkCanvas defCanvas ]
         ]
       , mkRow
@@ -171,7 +170,13 @@ handleAction = case _ of
 
 mkCanvas :: forall w i. Canvas -> HH.HTML w i
 mkCanvas cv =
-  HH.canvas [ HP.id canvasID, HP.width cv.width, HP.height cv.height, HP.classes [ BS.mxAuto ] ]
+  HH.canvas
+    [ HP.id canvasID
+    , HP.width cv.width
+    , HP.height cv.height
+    , HP.style $ "width: " <> show defCanvas.width <> "px"
+    , HP.classes [ BS.mxAuto ]
+    ]
 
 {-
 i is index, a is annotation.
