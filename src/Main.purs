@@ -46,6 +46,21 @@ data Action
   | ChangeMediumStep Number
   | ChangeMiniStep Number
 
+type Setting a =
+  { label :: String
+  , accessor :: State -> a
+  , action :: a -> Action
+  }
+
+settings :: Array (Setting Number)
+settings =
+  [ { label : "Beginn"        , accessor : _.start      , action : ChangeStart }
+  , { label : "Ende"          , accessor : _.end        , action : ChangeEnd }
+  , { label : "Schritt"       , accessor : _.step       , action : ChangeStep }
+  , { label : "Mittelschritt" , accessor : _.mediumStep , action : ChangeMediumStep }
+  , { label : "Minischritt"   , accessor : _.miniStep   , action : ChangeMiniStep }
+  ]
+
 component
   :: forall query output m.
      MonadEffect m => H.Component query Input output m
@@ -68,13 +83,7 @@ render state =
           [ mkCanvas defCanvas ]
         ]
       , mkRow
-        [ mkColumn'' BS.col3
-          [ mkSettingsInput "Beginn" state.start ChangeStart
-          , mkSettingsInput "Ende" state.start ChangeEnd
-          , mkSettingsInput "Schritt" state.step ChangeStep
-          , mkSettingsInput "Mittelschritt" state.mediumStep ChangeMediumStep
-          , mkSettingsInput "Minischritt" state.miniStep ChangeMiniStep
-          ]
+        [ mkColumn'' BS.col3 $ mkSettingsInputs state settings
         , mkColumn'' BS.col1 []
         , mkColumn'' BS.col3 <<< pure $
           HH.table
@@ -218,11 +227,15 @@ mkAnnotationInput i a =
         []
     ]
 
-mkSettingsInput
+mkSettingsInputs
   :: forall m.
-     String -> Number -> (Number -> Action) ->
-     HH.ComponentHTML Action () m
-mkSettingsInput label oldVal action =
+     State ->
+     Array (Setting Number) ->
+     Array (HH.ComponentHTML Action () m)
+mkSettingsInputs state settings = map (mkSettingsInput state) settings
+
+mkSettingsInput :: forall m. State -> Setting Number -> HH.ComponentHTML Action () m
+mkSettingsInput state setting =
   -- The boilerplate (inputGroup, div nesting, span, etc.) is due to Bootstrap.
   HH.div
   [ HP.classes [ BS.inputGroup, BS.m2 ] ]
@@ -234,15 +247,16 @@ mkSettingsInput label oldVal action =
       [ BS.inputGroupPrepend, BS.w50 ]
     ]
     [ HH.span [ HP.classes [ BS.inputGroupText, BS.w100 ] ]
-      [ HH.text $ label ]
+      [ HH.text $ setting.label ]
     ]
   , HH.input
     [ HP.classes [ BS.formControl ]
-    , HP.name label
     , HP.value (show oldVal)
-    , HE.onValueChange \s -> action (fromMaybe oldVal $ N.fromString s)
+    , HE.onValueChange \s -> setting.action (fromMaybe oldVal $ N.fromString s)
     ]
   ]
+  where
+    oldVal = setting.accessor $ state
 
 mkRow = HH.div [ HP.classes [ BS.row ] ]
 
