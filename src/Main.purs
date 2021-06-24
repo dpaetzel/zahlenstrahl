@@ -136,7 +136,7 @@ handleAction' action = do
 
     clearCanvas ctx state.canvas
 
-    drawNumberLine ctx state.canvas state
+    drawNumberLine ctx state
 
     C.stroke ctx
 

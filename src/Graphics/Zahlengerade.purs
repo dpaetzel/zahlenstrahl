@@ -50,15 +50,15 @@ defNumberLine =
 
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
-drawNumberLine ctx cv numberLine = do
-  let y = I.toNumber cv.height / 2.0
+drawNumberLine ctx numberLine = do
+  let y = I.toNumber numberLine.canvas.height / 2.0
   let arrow = {
     from : {
         x : 0.0 + 20.0,
         y : y
     },
     to : {
-        x : I.toNumber cv.width - 20.0,
+        x : I.toNumber numberLine.canvas.width - 20.0,
         y : y
     }
   }
