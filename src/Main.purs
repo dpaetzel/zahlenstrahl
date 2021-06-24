@@ -17,7 +17,15 @@ import Halogen.VDom.Driver (runUI)
 import Halogen.Themes.Bootstrap4 as BS
 import Partial.Unsafe (unsafePartial)
 
-import Graphics.Zahlengerade (Annotation, Canvas, NumberLine, annotation, clearCanvas, defNumberLine, drawNumberLine, strokeCanvas)
+import Graphics.Zahlengerade
+  ( Annotation
+  , Canvas
+  , NumberLine
+  , annotation
+  , clearCanvas
+  , defNumberLine
+  , drawNumberLine
+  , strokeCanvas)
 
 main :: Effect Unit
 main = HA.runHalogenAff do
