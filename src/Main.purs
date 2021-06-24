@@ -11,10 +11,10 @@ import Graphics.Canvas as C
 import Halogen as H
 import Halogen.Aff as HA
 import Halogen.HTML as HH
--- import DOM.HTML.Indexed as HI
 import Halogen.HTML.Properties as HP
 import Halogen.HTML.Events as HE
 import Halogen.VDom.Driver (runUI)
+import Halogen.Themes.Bootstrap4 as BS
 import Partial.Unsafe (unsafePartial)
 
 import Graphics.Zahlengerade (Annotation, Canvas, NumberLine, annotation, clearCanvas, defNumberLine, drawNumberLine, strokeCanvas)
@@ -54,24 +54,31 @@ render :: forall m. State -> H.ComponentHTML Action () m
 render state =
   HH.div_ $
     [ HH.div_ $
-      [ HH.h2_ [ HH.text "Zahlenbereich" ] ]
-      <> mkSettingsInput "Beginn" state.start ChangeStart
-      <> mkSettingsInput "Ende" state.end ChangeEnd
-    ]
-    <>
-    [ HH.div_ $
-      [ HH.h2_ [ HH.text "Skala" ] ]
-      <> mkSettingsInput "Schritt" state.step ChangeStep
-      <> mkSettingsInput "Mittelschritt" state.mediumStep ChangeMediumStep
-      <> mkSettingsInput "Minischritt" state.miniStep ChangeMiniStep
-    ]
-    <>
-    [ HH.div_ $
-      [ HH.h2_ [ HH.text "Markierungen" ] ]
-      `snoc` HH.table_ (annotationsHeader `cons` annotations `snoc` addButton)
-    ]
-    <>
-    [ HH.div_ [ mkCanvas defCanvas ]
+      [ mkRow
+        [ mkColumn $
+          HH.div
+          [ HP.classes [ BS.mxAuto, HH.ClassName "canvas-width" ] ]
+          [ mkCanvas defCanvas ]
+        ]
+      , mkRow
+        [ mkColumn'' BS.col3
+          [ mkSettingsInput "Beginn" state.start ChangeStart
+          , mkSettingsInput "Ende" state.start ChangeEnd
+          , mkSettingsInput "Schritt" state.step ChangeStep
+          , mkSettingsInput "Mittelschritt" state.mediumStep ChangeMediumStep
+          , mkSettingsInput "Minischritt" state.miniStep ChangeMiniStep
+          ]
+        , mkColumn'' BS.col1 []
+        , mkColumn'' BS.col3 <<< pure $
+          HH.table
+          [ HP.classes [ BS.table, BS.tableStriped ] ]
+          [ annotationsHeader
+          , HH.tbody_ annotations
+          , addButton
+          ]
+        , mkColumn' []
+        ]
+      ]
     ]
     where
       annotationsHeader :: HH.HTML _ _
@@ -91,7 +98,7 @@ render state =
         , HH.td_
           [ HH.button
             [ HE.onClick \_ -> Add
-            , HP.classes [ HH.ClassName "fa fa-plus"]
+            , HP.classes [ HH.ClassName "fa fa-plus", BS.btn, BS.btnPrimary ]
             ]
             []
           ]
@@ -101,8 +108,10 @@ render state =
 canvasID :: String
 canvasID = "canvas"
 
+
 defCanvas :: Canvas
 defCanvas = { width : 1000, height : 200 }
+
 
 handleAction'
   :: forall output m.
@@ -162,7 +171,7 @@ handleAction = case _ of
 
 mkCanvas :: forall w i. Canvas -> HH.HTML w i
 mkCanvas cv =
-  HH.canvas [ HP.id canvasID, HP.width cv.width, HP.height cv.height ]
+  HH.canvas [ HP.id canvasID, HP.width cv.width, HP.height cv.height, HP.classes [ BS.mxAuto ] ]
 
 {-
 i is index, a is annotation.
@@ -173,38 +182,59 @@ mkAnnotationInput
      Int -> Annotation -> HH.ComponentHTML Action () m
 mkAnnotationInput i a =
   HH.tr_
-    [ HH.td_
-      [ HH.input
-        [ HP.value (show a.place)
+    [ HH.td_ <<< pure $
+      HH.input
+        [ HP.classes [ BS.formControl ]
+        , HP.value (show a.place)
         , HE.onValueChange \p ->
-           Edit i a { place = fromMaybe a.place $ N.fromString p }
+          Edit i a { place = fromMaybe a.place $ N.fromString p }
         ]
-      ]
-    , HH.td_
-      [ HH.input
-        [ HP.value a.label
+    , HH.td_ <<< pure $
+      HH.input
+        [ HP.classes [ BS.formControl ]
+        , HP.value a.label
         , HE.onValueChange \l ->
-        Edit i a { label = l }
+          Edit i a { label = l }
         ]
-      ]
-    , HH.td_
-      [ HH.button
+    , HH.td_ <<< pure $
+      -- TODO This is <button> but I should use <input type="button">.
+      HH.button
         [ HE.onClick \_ -> Remove i
-        , HP.classes [ HH.ClassName "fa fa-minus"]
+        , HP.classes [ HH.ClassName "fa fa-minus", BS.btn, BS.btnPrimary ]
         ]
         []
-      ]
     ]
 
 mkSettingsInput
   :: forall m.
      String -> Number -> (Number -> Action) ->
-     Array (HH.ComponentHTML Action () m)
+     HH.ComponentHTML Action () m
 mkSettingsInput label oldVal action =
-  [ HH.label [ HP.for label ] [ HH.text $ label <> ":" ]
+  -- The boilerplate (inputGroup, div nesting, span, etc.) is due to Bootstrap.
+  HH.div
+  [ HP.classes [ BS.inputGroup, BS.m2 ] ]
+  [
+    HH.div
+    [ HP.classes
+      -- The w50 (in combination with the w100) make the labels all the same
+      -- width.
+      [ BS.inputGroupPrepend, BS.w50 ]
+    ]
+    [ HH.span [ HP.classes [ BS.inputGroupText, BS.w100 ] ]
+      [ HH.text $ label ]
+    ]
   , HH.input
-    [ HP.name label
+    [ HP.classes [ BS.formControl ]
+    , HP.name label
     , HP.value (show oldVal)
     , HE.onValueChange \s -> action (fromMaybe oldVal $ N.fromString s)
     ]
   ]
+
+mkRow = HH.div [ HP.classes [ BS.row ] ]
+
+mkColumn = mkColumn' <<< pure
+
+mkColumn' = HH.div [ HP.classes [ BS.col ] ]
+
+mkColumn'' cls = HH.div [ HP.classes [ cls ] ]

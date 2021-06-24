@@ -6,6 +6,7 @@
   , "effect"
   , "foldable-traversable"
   , "halogen"
+  , "halogen-bootstrap4"
   , "integers"
   , "math"
   , "maybe"
