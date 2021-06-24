@@ -3,6 +3,7 @@ module Main where
 import Prelude
 
 import Data.Array (deleteAt, length, snoc, updateAt, zipWith, (..))
+import Data.Int as I
 import Data.Number as N
 import Data.Maybe (Maybe(..), fromMaybe)
 import Effect (Effect)
@@ -45,6 +46,8 @@ data Action
   | ChangeStep Number
   | ChangeMediumStep Number
   | ChangeMiniStep Number
+  | ChangeWidth Int
+  | ChangeHeight Int
 
 type Setting a =
   { label :: String
@@ -54,11 +57,17 @@ type Setting a =
 
 settings :: Array (Setting Number)
 settings =
-  [ { label : "Beginn"        , accessor : _.start      , action : ChangeStart }
-  , { label : "Ende"          , accessor : _.end        , action : ChangeEnd }
-  , { label : "Schritt"       , accessor : _.step       , action : ChangeStep }
-  , { label : "Mittelschritt" , accessor : _.mediumStep , action : ChangeMediumStep }
-  , { label : "Minischritt"   , accessor : _.miniStep   , action : ChangeMiniStep }
+  [ { label : "Beginn"        , accessor : _.start         , action : ChangeStart }
+  , { label : "Ende"          , accessor : _.end           , action : ChangeEnd }
+  , { label : "Schritt"       , accessor : _.step          , action : ChangeStep }
+  , { label : "Mittelschritt" , accessor : _.mediumStep    , action : ChangeMediumStep }
+  , { label : "Minischritt"   , accessor : _.miniStep      , action : ChangeMiniStep }
+  ]
+
+intSettings :: Array (Setting Int)
+intSettings =
+  [ { label : "Breite (px)"   , accessor : _.canvas.width  , action : ChangeWidth }
+  , { label : "Höhe (px)"     , accessor : _.canvas.height , action : ChangeHeight }
   ]
 
 component
@@ -82,7 +91,9 @@ render state =
           [ mkCanvas state.canvas ]
         ]
       , mkRow
-        [ mkColumn BS.col3 $ mkSettingsInputs state settings
+        [ mkColumn BS.col3 $
+          mkSettingsInputs state N.fromString settings
+          -- <> mkSettingsInputs state I.fromString intSettings
         , mkColumn BS.col1 []
         , mkColumn BS.col3 <<< pure $
           HH.table
@@ -173,6 +184,10 @@ handleAction = case _ of
   ChangeMiniStep s ->
     H.modify_ \state -> state { miniStep = s }
   -- TODO Make steps toggleable
+  ChangeWidth w ->
+    H.modify_ \state -> state { canvas { width = w } }
+  ChangeHeight h ->
+    H.modify_ \state -> state { canvas { height = h } }
 
 mkCanvas :: forall w i. Canvas -> HH.HTML w i
 mkCanvas cv =
