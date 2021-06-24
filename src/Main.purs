@@ -217,18 +217,22 @@ mkAnnotationInput i a =
     ]
 
 mkSettingsInputs
-  :: forall m.
+  :: forall m a.
+     Show a =>
      State ->
-     Array (Setting Number) ->
+     (String -> Maybe a) ->
+     Array (Setting a) ->
      Array (HH.ComponentHTML Action () m)
-mkSettingsInputs st setts = map (mkSettingsInput st) setts
+mkSettingsInputs st read setts = map (mkSettingsInput st read) setts
 
 mkSettingsInput
-  :: forall m.
+  :: forall m a.
+     Show a =>
      State ->
-     Setting Number ->
+     (String -> Maybe a) ->
+     Setting a ->
      HH.ComponentHTML Action () m
-mkSettingsInput state setting =
+mkSettingsInput state read setting =
   -- The boilerplate (inputGroup, div nesting, span, etc.) is due to Bootstrap.
   HH.div
   [ HP.classes [ BS.inputGroup, BS.m2 ] ]
@@ -245,7 +249,7 @@ mkSettingsInput state setting =
   , HH.input
     [ HP.classes [ BS.formControl ]
     , HP.value (show oldVal)
-    , HE.onValueChange \s -> setting.action (fromMaybe oldVal $ N.fromString s)
+    , HE.onValueChange \s -> setting.action (fromMaybe oldVal $ read s)
     ]
   ]
   where
