@@ -28,20 +28,24 @@ type NumberLine =
     , mediumStep  :: Number
     , miniStep    :: Number
     , annotations :: Array Annotation
-    -- , size :: Number
+    , canvas :: Canvas
     }
+
+defCanvas :: Canvas
+defCanvas = { width : 1000, height : 200 }
 
 defNumberLine :: NumberLine
 defNumberLine =
-  { start : 0.0,
-    end : 10.0,
-    step : 1.0,
-    mediumStep : 0.5,
-    miniStep : 0.1,
-    annotations :
+  { start : 0.0
+  , end : 10.0
+  , step : 1.0
+  , mediumStep : 0.5
+  , miniStep : 0.1
+  , annotations :
     [ { place : 3.14, label : "π"}
     , { place : 2.71, label : "e"}
     ]
+  , canvas : defCanvas
   }
 
 -- | Only adds to the current path, does neither call

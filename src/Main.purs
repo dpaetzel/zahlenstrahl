@@ -2,7 +2,7 @@ module Main where
 
 import Prelude
 
-import Data.Array (cons, deleteAt, length, snoc, updateAt, zipWith, (..))
+import Data.Array (deleteAt, length, snoc, updateAt, zipWith, (..))
 import Data.Number as N
 import Data.Maybe (Maybe(..), fromMaybe)
 import Effect (Effect)
@@ -25,7 +25,7 @@ import Graphics.Zahlengerade
   , clearCanvas
   , defNumberLine
   , drawNumberLine
-  , strokeCanvas)
+  )
 
 main :: Effect Unit
 main = HA.runHalogenAff do
@@ -78,9 +78,8 @@ render state =
   HH.div_ $
     [ HH.div_ $
       [ mkRow
-        [ mkColumn $
-          HH.div_
-          [ mkCanvas defCanvas ]
+        [ mkColumn BS.mxAuto
+          [ mkCanvas state.canvas ]
         ]
       , mkRow
         [ mkColumn'' BS.col3 $ mkSettingsInputs state settings
@@ -120,14 +119,8 @@ render state =
           ]
         ]
 
-
 canvasID :: String
 canvasID = "canvas"
-
-
-defCanvas :: Canvas
-defCanvas = { width : 1000, height : 200 }
-
 
 handleAction'
   :: forall output m.
@@ -135,18 +128,15 @@ handleAction'
 handleAction' action = do
   handleAction action
   state <- H.get
-  let cv = defCanvas
   H.liftEffect $ void $ unsafePartial do
     Just canvas <- C.getCanvasElementById canvasID
     ctx <- C.getContext2D canvas
 
     C.beginPath ctx
 
-    clearCanvas ctx cv
+    clearCanvas ctx state.canvas
 
-    drawNumberLine ctx cv state
-
-    strokeCanvas ctx 2.0 cv
+    drawNumberLine ctx state.canvas state
 
     C.stroke ctx
 
@@ -184,15 +174,14 @@ handleAction = case _ of
     H.modify_ \state -> state { miniStep = s }
   -- TODO Make steps toggleable
 
-
 mkCanvas :: forall w i. Canvas -> HH.HTML w i
 mkCanvas cv =
   HH.canvas
     [ HP.id canvasID
     , HP.width cv.width
     , HP.height cv.height
-    , HP.style $ "width: " <> show defCanvas.width <> "px"
-    , HP.classes [ BS.mxAuto ]
+    , HP.style $ "width: " <> show cv.width <> "px"
+    , HP.classes [ BS.mxAuto, BS.border ]
     ]
 
 {-
