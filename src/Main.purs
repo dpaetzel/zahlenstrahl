@@ -82,9 +82,9 @@ render state =
           [ mkCanvas state.canvas ]
         ]
       , mkRow
-        [ mkColumn'' BS.col3 $ mkSettingsInputs state settings
-        , mkColumn'' BS.col1 []
-        , mkColumn'' BS.col3 <<< pure $
+        [ mkColumn BS.col3 $ mkSettingsInputs state settings
+        , mkColumn BS.col1 []
+        , mkColumn BS.col3 <<< pure $
           HH.table
           [ HP.classes [ BS.table, BS.tableStriped ] ]
           [ annotationsHeader
@@ -221,9 +221,13 @@ mkSettingsInputs
      State ->
      Array (Setting Number) ->
      Array (HH.ComponentHTML Action () m)
-mkSettingsInputs state settings = map (mkSettingsInput state) settings
+mkSettingsInputs st setts = map (mkSettingsInput st) setts
 
-mkSettingsInput :: forall m. State -> Setting Number -> HH.ComponentHTML Action () m
+mkSettingsInput
+  :: forall m.
+     State ->
+     Setting Number ->
+     HH.ComponentHTML Action () m
 mkSettingsInput state setting =
   -- The boilerplate (inputGroup, div nesting, span, etc.) is due to Bootstrap.
   HH.div
@@ -247,10 +251,11 @@ mkSettingsInput state setting =
   where
     oldVal = setting.accessor $ state
 
+mkRow :: forall w i. Array (HH.HTML w i) -> HH.HTML w i
 mkRow = HH.div [ HP.classes [ BS.row ] ]
 
-mkColumn = mkColumn' <<< pure
+mkColumn :: forall w i. HH.ClassName -> Array (HH.HTML w i) -> HH.HTML w i
+mkColumn cls = HH.div [ HP.classes [ cls ] ]
 
+mkColumn' :: forall w i. Array (HH.HTML w i) -> HH.HTML w i
 mkColumn' = HH.div [ HP.classes [ BS.col ] ]
-
-mkColumn'' cls = HH.div [ HP.classes [ cls ] ]
