@@ -6,14 +6,13 @@ where
 
 import Prelude
 
-import Data.Array (deleteAt, filter, length, notElem, snoc, updateAt, zip, zipWith, (..))
+import Data.Array (filter, notElem, zipWith, (..))
 import Data.Int as I
-import Data.Ord (signum)
 import Data.Traversable (sequence_)
 import Effect (Effect)
 import Math as M
 import Graphics.Canvas as C
-import Graphics.Zahlengerade.Canvas
+import Graphics.Zahlengerade.Canvas (Canvas, asRect, clearCanvas, strokeCanvas)
 import Data.String as S
 
 type Annotation = { place :: Number, label :: String }
@@ -76,6 +75,7 @@ arrow cv headLength =
 
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
+drawNumberLine :: C.Context2D -> NumberLine -> Effect Unit
 drawNumberLine ctx numberLine = do
   -- TODO I can calculate the width required here from the offset of the first
   -- number and its label's width (this way I can fix very large numbers from
@@ -183,6 +183,7 @@ drawArrow ctx arr = do
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
 -- TODO Add an only below switch
+drawTick :: C.Context2D -> Number -> Number -> Number -> Effect Unit
 drawTick ctx y len x = do
   -- TODO Make adaptable
   newLineWidth ctx 1.0
@@ -194,6 +195,7 @@ drawTick ctx y len x = do
 -- |
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
+drawLabel :: C.Context2D -> Number -> Number -> Number -> String -> Effect Unit
 drawLabel ctx y len x text = do
   { width } <- C.measureText ctx text
   let fontHeight = 20
@@ -201,6 +203,7 @@ drawLabel ctx y len x text = do
   C.fillText ctx text (x - width / 2.0) (y + len +
     if len > 0.0 then I.toNumber fontHeight else - I.toNumber fontHeight / 4.0)
 
+newLineWidth :: C.Context2D -> Number -> Effect Unit
 newLineWidth ctx width = do
   -- I need to stroke and begin a new path whenever I change the line width.
   C.stroke ctx
