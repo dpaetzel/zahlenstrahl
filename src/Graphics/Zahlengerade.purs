@@ -84,16 +84,16 @@ drawNumberLine ctx numberLine = do
   let miniTickLength = 6.0
   let markerLength = 50.0
 
-  drawnSteps <- drawTicks ctx true tickLength y coords (numbers { step = numberLine.step }) []
-  drawnSteps2 <- drawTicks ctx false mediumTickLength y coords (numbers { step = numberLine.mediumStep }) drawnSteps
-  _ <- drawTicks ctx false miniTickLength y coords (numbers { step = numberLine.miniStep }) drawnSteps2
+  drawnSteps <- drawTicks true tickLength y coords (numbers { step = numberLine.step }) []
+  drawnSteps2 <- drawTicks false mediumTickLength y coords (numbers { step = numberLine.mediumStep }) drawnSteps
+  _ <- drawTicks false miniTickLength y coords (numbers { step = numberLine.miniStep }) drawnSteps2
 
-  drawAnnotations ctx markerLength y coords numbers numberLine.annotations
+  drawAnnotations markerLength y coords numbers numberLine.annotations
 
   where
     -- | Returns the coordinates of the ticks drawn (so future calls to
     -- | 'drawTicks' can filter these).
-    drawTicks ctx labels tickLength y coords numbers alreadyDrawn = do
+    drawTicks labels tickLength y coords numbers alreadyDrawn = do
       -- This is one tick short …
       let nSteps = I.floor $ (numbers.end - numbers.start) / numbers.step
       -- … but we start counting from 0 which adds one.
@@ -124,7 +124,7 @@ drawNumberLine ctx numberLine = do
         + ((num - numbers.start) / (numbers.end - numbers.start))
           * (coords.end - coords.start)
 
-    drawAnnotations ctx markerLength y coords numbers annotations = do
+    drawAnnotations markerLength y coords numbers annotations = do
       sequence_ <<< map drawAnnotation $ annotations
       where
         -- TODO unify with `when labels` part above
