@@ -48,28 +48,47 @@ defNumberLine =
   , canvas : defCanvas
   }
 
+type Coord =
+  { x :: Number
+  , y :: Number
+  }
+
+type Arrow =
+  { from :: Coord
+  , to :: Coord
+  , headLength :: Number
+  }
+
+arrow :: Canvas -> Number -> Arrow
+arrow cv headLength =
+  let y = I.toNumber cv.height / 2.0
+  in
+    { from : {
+          x : 0.0 + 20.0,
+          y : y
+      }
+    , to : {
+          x : I.toNumber cv.width - 20.0,
+          y : y
+      }
+    , headLength : headLength
+    }
+
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
 drawNumberLine ctx numberLine = do
+  -- TODO I can calculate the width required here from the offset of the first
+  -- number and its label's width (this way I can fix very large numbers from
+  -- being cut off)
   let y = I.toNumber numberLine.canvas.height / 2.0
-  let arrow = {
-    from : {
-        x : 0.0 + 20.0,
-        y : y
-    },
-    to : {
-        x : I.toNumber numberLine.canvas.width - 20.0,
-        y : y
-    }
-  }
+  -- TODO Make headLength dependent on canvas size or so
+  let arr = arrow numberLine.canvas 15.0
 
-  -- TODO Make adaptable
-  let headLength = 15.0
-  drawArrow ctx arrow.from arrow.to headLength
+  drawArrow ctx arr
 
   let coords = {
-    start : arrow.from.x + 10.0,
-    end : arrow.to.x - 1.2 * headLength
+    start : arr.from.x + 10.0,
+    end : arr.to.x - 1.2 * arr.headLength
   }
 
   let numbers = {
@@ -140,7 +159,13 @@ drawNumberLine ctx numberLine = do
 
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
-drawArrow ctx from to headLength = do
+drawArrow
+  :: C.Context2D
+  -> Arrow
+  -> Effect Unit
+drawArrow ctx arr = do
+  let to = arr.to
+  let from = arr.from
   -- TODO Make adaptable
   newLineWidth ctx 2.0
 
@@ -148,11 +173,11 @@ drawArrow ctx from to headLength = do
 
   C.moveTo ctx from.x from.y
   C.lineTo ctx to.x to.y
-  C.moveTo ctx (to.x - headLength * M.cos (angle - M.pi / 6.0))
-    (to.y - headLength * M.sin (angle - M.pi / 6.0))
+  C.moveTo ctx (to.x - arr.headLength * M.cos (angle - M.pi / 6.0))
+    (to.y - arr.headLength * M.sin (angle - M.pi / 6.0))
   C.lineTo ctx to.x to.y
-  C.lineTo ctx (to.x - headLength * M.cos (angle + M.pi / 6.0))
-    (to.y - headLength * M.sin (angle + M.pi / 6.0))
+  C.lineTo ctx (to.x - arr.headLength * M.cos (angle + M.pi / 6.0))
+    (to.y - arr.headLength * M.sin (angle + M.pi / 6.0))
 
 
 -- | Only adds to the current path, does neither call
