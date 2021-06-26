@@ -95,7 +95,7 @@ render state =
           mkSettingsInputs state N.fromString settings
           -- <> mkSettingsInputs state I.fromString intSettings
         , mkColumn BS.col1 []
-        , mkColumn BS.col3 <<< pure $
+        , mkColumn BS.col4 <<< pure $
           HH.table
           [ HP.classes [ BS.table, BS.tableStriped ] ]
           [ annotationsHeader
