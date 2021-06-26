@@ -21,7 +21,11 @@ import Graphics.Zahlengerade.Canvas
   )
 import Data.String as S
 
-import Graphics.Zahlengerade.Arrow (arrow, drawArrow)
+import Graphics.Zahlengerade.Arrow (Arrow, arrow, drawArrow)
+
+-- TODO Make adaptable
+fontHeight :: Int
+fontHeight = 20
 
 -- TODO Make adaptable
 tickLength :: Number
@@ -86,17 +90,15 @@ type Transformation =
   }
 
 -- | Retrieve the transformation described implicitly by the given number line
--- | configuration.
-transformation :: NumberLine -> Transformation
-transformation numLine =
+-- | and arrow configurations.
+transformation :: NumberLine -> Arrow -> Transformation
+transformation numLine arr =
   { from : { start : numLine.start, end : numLine.end }
   , to :
-    { start : arr.from.x + arr.headLength
+    { start : arr.from.x + 0.6 * arr.headLength
     , end : arr.to.x - 1.2 * arr.headLength
     }
   }
-  where
-    arr = arrow numLine.canvas tickLength
 
 -- | Apply a transformation to a number (i.e. transforming it to the
 -- | corresponding number in the target space).
@@ -148,10 +150,12 @@ drawNumberLine ctx numLine = do
   -- TODO Consider rounding to .5 (or .0, depending on line width) to unblur
   let y = I.toNumber numLine.canvas.height / 2.0
 
-  let arr = arrow numLine.canvas tickLength
+  -- Make sure that the first label is not cut off.
+  xOffset <- (_ / 2.0) <$> (labelWidth ctx $ toLabel numLine.start)
+  let arr = arrow numLine.canvas tickLength xOffset
   drawArrow ctx arr
 
-  let t = transformation numLine
+  let t = transformation numLine arr
 
   let xs = xCoordsSteps t numLine.step
   drawTicks ctx y tickLength xs
@@ -255,8 +259,17 @@ drawAnnotation ctx y markerLen ann x = do
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
 drawLabel :: C.Context2D -> Number -> Number -> String -> Number -> Effect Unit
 drawLabel ctx y dist label x = do
-  { width } <- C.measureText ctx label
-  let fontHeight = 20
-  C.setFont ctx (show fontHeight <> "px Arial")
+  width <- labelWidth ctx label
+  setFont ctx
   C.fillText ctx label (x - width / 2.0) (y + dist +
     if dist > 0.0 then I.toNumber fontHeight else - I.toNumber fontHeight / 4.0)
+
+setFont :: C.Context2D -> Effect Unit
+setFont ctx =
+  C.setFont ctx (show fontHeight <> "px Arial")
+
+labelWidth :: C.Context2D -> String -> Effect Number
+labelWidth ctx label = do
+  setFont ctx
+  { width } <- C.measureText ctx label
+  pure width

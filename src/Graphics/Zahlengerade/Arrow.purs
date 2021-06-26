@@ -19,11 +19,9 @@ type Arrow =
   , headLength :: Number
   }
 
-arrow :: Canvas -> Number -> Arrow
-arrow cv headLength =
+arrow :: Canvas -> Number -> Number -> Arrow
+arrow cv headLength xOffset =
   let y = I.toNumber cv.height / 2.0
-      -- TODO Use first label's width to set xOffset
-      xOffset = headLength
   in
     { from :
       { x : xOffset
