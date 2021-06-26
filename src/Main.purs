@@ -196,7 +196,7 @@ mkCanvas cv =
     , HP.width cv.width
     , HP.height cv.height
     , HP.style $ "width: " <> show cv.width <> "px"
-    , HP.classes [ BS.mxAuto, BS.border ]
+    , HP.classes [ BS.mxAuto ]
     ]
 
 {-
