@@ -22,7 +22,7 @@ import Graphics.Zahlengerade
   ( Annotation
   , Canvas
   , NumberLine
-  , annotation
+  , defAnnotation
   , clearCanvas
   , defNumberLine
   , drawNumberLine
@@ -162,7 +162,7 @@ handleAction
 handleAction = case _ of
   Add ->
     H.modify_ \state ->
-      state { annotations = snoc state.annotations annotation }
+      state { annotations = snoc state.annotations defAnnotation }
   Edit i a ->
     H.modify_ \state ->
       case updateAt i a state.annotations of

@@ -6,19 +6,44 @@ where
 
 import Prelude
 
-import Data.Array (filter, notElem, zipWith, (..))
+import Data.Array (zipWith, (..), (\\))
 import Data.Int as I
 import Data.Traversable (sequence_)
 import Effect (Effect)
+-- import Effect.Class.Console (log)
 import Math as M
 import Graphics.Canvas as C
-import Graphics.Zahlengerade.Canvas (Canvas, asRect, clearCanvas, strokeCanvas)
+import Graphics.Zahlengerade.Canvas
+  ( Canvas
+  , asRect
+  , clearCanvas
+  , newLineWidth
+  )
 import Data.String as S
+
+import Graphics.Zahlengerade.Arrow (arrow, drawArrow)
+
+-- TODO Make adaptable
+tickLength :: Number
+tickLength = 16.0
+
+-- TODO Make adaptable
+mediumTickLength :: Number
+mediumTickLength = 10.0
+
+-- TODO Make adaptable
+miniTickLength :: Number
+miniTickLength = 6.0
+
+-- TODO Make adaptable
+markerLength :: Number
+markerLength = 50.0
 
 type Annotation = { place :: Number, label :: String }
 
-annotation :: Annotation
-annotation = { place : 0.0, label : "0" }
+-- | Default annotation.
+defAnnotation :: Annotation
+defAnnotation = { place : 0.0, label : "0" }
 
 type NumberLine =
     { start       :: Number
@@ -28,11 +53,14 @@ type NumberLine =
     , miniStep    :: Number
     , annotations :: Array Annotation
     , canvas :: Canvas
+    , resolution :: Int
     }
 
+-- | Default canvas dimensions.
 defCanvas :: Canvas
 defCanvas = { width : 1000, height : 200 }
 
+-- | Default number line configuration.
 defNumberLine :: NumberLine
 defNumberLine =
   { start : 0.0
@@ -45,144 +73,121 @@ defNumberLine =
     , { place : 2.71, label : "e"}
     ]
   , canvas : defCanvas
+  , resolution : 1
   }
 
-type Coord =
-  { x :: Number
-  , y :: Number
+-- | Represents a transformation from one (one-dimensional) space to another.
+-- |
+-- | Used to convert between numbers entered by the user and x positions on the
+-- | canvas.
+type Transformation =
+  { from :: { start :: Number, end :: Number }
+  , to :: { start :: Number, end :: Number}
   }
 
-type Arrow =
-  { from :: Coord
-  , to :: Coord
-  , headLength :: Number
-  }
-
-arrow :: Canvas -> Number -> Arrow
-arrow cv headLength =
-  let y = I.toNumber cv.height / 2.0
-  in
-    { from : {
-          x : 0.0 + 20.0,
-          y : y
-      }
-    , to : {
-          x : I.toNumber cv.width - 20.0,
-          y : y
-      }
-    , headLength : headLength
+-- | Retrieve the transformation described implicitly by the given number line
+-- | configuration.
+transformation :: NumberLine -> Transformation
+transformation numLine =
+  { from : { start : numLine.start, end : numLine.end }
+  , to :
+    { start : arr.from.x + arr.headLength
+    , end : arr.to.x - 1.2 * arr.headLength
     }
+  }
+  where
+    arr = arrow numLine.canvas tickLength
 
+-- | Apply a transformation to a number (i.e. transforming it to the
+-- | corresponding number in the target space).
+transform :: Transformation -> Number -> Number
+transform t n =
+  t.to.start
+    + ((n - t.from.start) / (t.from.end - t.from.start))
+      * (t.to.end - t.to.start)
+  -- TODO Probably round x values here to the nearest .5? Or, depending on
+  -- linewidth of the tick to .5 or .0
+
+-- | Given a start and end and a step size, provides the set (array) of steps.
+steps
+  :: forall r
+  . { start :: Number, end :: Number | r }
+  -> Number
+  -> Array Number
+steps { start, end } d =
+  let
+    n = I.floor $ (end - start) / d
+    step k = I.toNumber k * d + start
+  in
+    map step $ 0..n
+
+-- | Divides the transformation's entire domain into equidistant steps of the
+-- | provided length and then transforms those steps to the transformation's
+-- | target space.
+xCoordsSteps :: Transformation -> Number -> Array Number
+xCoordsSteps t = map (transform t) <<< steps t.from
+
+-- | Transforms a number to a (German) number label.
+toLabel :: Number -> String
+toLabel num =
+  S.replace (S.Pattern ".") (S.Replacement ",") $
+  if num - M.floor num == 0.0 then show (I.floor num) else show num
+
+-- | Draws the number line described by the provided config to the provided
+-- | context's canvas.
+-- |
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
 drawNumberLine :: C.Context2D -> NumberLine -> Effect Unit
-drawNumberLine ctx numberLine = do
+drawNumberLine ctx numLine = do
+
   -- TODO I can calculate the width required here from the offset of the first
   -- number and its label's width (this way I can fix very large numbers from
   -- being cut off)
-  let y = I.toNumber numberLine.canvas.height / 2.0
-  -- TODO Make headLength dependent on canvas size or so
-  let arr = arrow numberLine.canvas 15.0
 
+  -- TODO Consider rounding to .5 (or .0, depending on line width) to unblur
+  let y = I.toNumber numLine.canvas.height / 2.0
+
+  let arr = arrow numLine.canvas tickLength
   drawArrow ctx arr
 
-  let coords = {
-    start : arr.from.x + 10.0,
-    end : arr.to.x - 1.2 * arr.headLength
-  }
+  let t = transformation numLine
 
-  let numbers = {
-    start : numberLine.start,
-    end : numberLine.end,
-    step : numberLine.step
-  }
+  let xs = xCoordsSteps t numLine.step
+  drawTicks ctx y tickLength xs
 
-  -- TODO Make adaptable
-  let tickLength = 16.0
-  let mediumTickLength = 10.0
-  let miniTickLength = 6.0
-  let markerLength = 50.0
+  let labelSteps = steps t.from numLine.step
+  let labels = map toLabel labelSteps
+  drawTickLabels ctx y tickLength labels xs
 
-  drawnSteps <- drawTicks true tickLength y coords (numbers { step = numberLine.step }) []
-  drawnSteps2 <- drawTicks false mediumTickLength y coords (numbers { step = numberLine.mediumStep }) drawnSteps
-  _ <- drawTicks false miniTickLength y coords (numbers { step = numberLine.miniStep }) drawnSteps2
+  let xsMed = (_ \\ xs) $ xCoordsSteps t numLine.mediumStep
+  drawTicks ctx y mediumTickLength xsMed
 
-  drawAnnotations markerLength y coords numbers numberLine.annotations
+  let xsMini = (_ \\ (xs <> xsMed)) $ xCoordsSteps t numLine.miniStep
+  drawTicks ctx y miniTickLength xsMini
 
-  where
-    -- | Returns the coordinates of the ticks drawn (so future calls to
-    -- | 'drawTicks' can filter these).
-    drawTicks labels tickLength y coords numbers alreadyDrawn = do
-      -- This is one tick short …
-      let nSteps = I.floor $ (numbers.end - numbers.start) / numbers.step
-      -- … but we start counting from 0 which adds one.
-      let steps = (map (step numbers) $ 0..nSteps)
-      let stepsCoords = map (toCoord numbers coords) steps
-      -- We filter coordinates instead of steps due to aliasing (if two
-      -- different steps map to the same coordinate, neither should be redrawn).
-      let stepsCoords_ = filter (_ `notElem` alreadyDrawn) stepsCoords
+  let xsAnn = map (transform t <<< _.place) numLine.annotations
+  drawAnnotations ctx y markerLength (map _.label numLine.annotations) xsAnn
 
-      sequence_ $ map (drawTick ctx y tickLength) stepsCoords_
-
-      when labels $ do
-        sequence_ <<< zipWith
-            (\xCoord num -> drawLabel ctx y tickLength xCoord (labelize num))
-            stepsCoords
-          $ steps
-
-      pure (alreadyDrawn <> stepsCoords_)
-
-    labelize num =
-      S.replace (S.Pattern ".") (S.Replacement ",") $
-      if num - M.floor num == 0.0 then show (I.floor num) else show num
-
-    step numbers n = I.toNumber n * numbers.step + numbers.start
-
-    toCoord numbers coords num =
-      coords.start
-        + ((num - numbers.start) / (numbers.end - numbers.start))
-          * (coords.end - coords.start)
-
-    drawAnnotations markerLength y coords numbers annotations = do
-      sequence_ <<< map drawAnnotation $ annotations
-      where
-        -- TODO unify with `when labels` part above
-        drawAnnotation a = do
-          let x = toCoord numbers coords a.place
-
-          -- TODO Make adaptable
-          newLineWidth ctx 1.0
-          C.moveTo ctx x y
-          C.lineTo ctx x (y - markerLength)
-          drawLabel ctx y (- markerLength) x a.label
-
-
+-- | Given a number line's y-coordinate and a set of x-coordinates, draws a tick
+-- | of the given length for each of the x-coordinates to the provided context's
+-- | canvas at that position.
+-- |
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
-drawArrow
+drawTicks
   :: C.Context2D
-  -> Arrow
+  -> Number
+  -> Number
+  -> Array Number
   -> Effect Unit
-drawArrow ctx arr = do
-  let to = arr.to
-  let from = arr.from
-  -- TODO Make adaptable
-  newLineWidth ctx 2.0
+drawTicks ctx y len xs = sequence_ $ map (drawTick ctx y len) xs
 
-  let angle = M.atan2 (to.y - from.y) (to.x - from.x)
-
-  C.moveTo ctx from.x from.y
-  C.lineTo ctx to.x to.y
-  C.moveTo ctx (to.x - arr.headLength * M.cos (angle - M.pi / 6.0))
-    (to.y - arr.headLength * M.sin (angle - M.pi / 6.0))
-  C.lineTo ctx to.x to.y
-  C.lineTo ctx (to.x - arr.headLength * M.cos (angle + M.pi / 6.0))
-    (to.y - arr.headLength * M.sin (angle + M.pi / 6.0))
-
-
+-- | Given a number line's y-coordinate as well as an x-coordinate and a length,
+-- | draws a tick to the provided context's canvas at that position.
+-- |
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
--- TODO Add an only below switch
 drawTick :: C.Context2D -> Number -> Number -> Number -> Effect Unit
 drawTick ctx y len x = do
   -- TODO Make adaptable
@@ -191,21 +196,67 @@ drawTick ctx y len x = do
   C.moveTo ctx x (y - len)
   C.lineTo ctx x (y + len)
 
--- | 'len' is the corresponding tick's length.
+-- | Given a number line's y-coordinate and sets of x-coordinates and labels,
+-- | draws the tick scale labels to the provided context's canvas at that
+-- | position. Tick scale labels are, by default, drawn below the number line.
 -- |
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
-drawLabel :: C.Context2D -> Number -> Number -> Number -> String -> Effect Unit
-drawLabel ctx y len x text = do
-  { width } <- C.measureText ctx text
+drawTickLabels
+  :: C.Context2D
+  -> Number
+  -> Number
+  -> Array String
+  -> Array Number
+  -> Effect Unit
+drawTickLabels ctx y tickLen labels xs =
+  sequence_ $ zipWith (drawLabel ctx y tickLen) labels xs
+
+-- | Given a number line's y-coordinate and sets of x-coordinates and
+-- | annotations, draws the labels to the provided context's canvas at that
+-- | position. Annotations are drawn above the number line with markers which
+-- | are basically (usually longer) ticks that do not cross the line.
+-- |
+-- | Only adds to the current path, does neither call
+-- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
+drawAnnotations
+  :: C.Context2D
+  -> Number
+  -> Number
+  -> Array String
+  -> Array Number
+  -> Effect Unit
+drawAnnotations ctx y markerLen anns xs =
+  sequence_ $ zipWith (drawAnnotation ctx y markerLen) anns xs
+
+-- | Draw a single annotation, see `drawAnnotations`.
+-- |
+-- | Only adds to the current path, does neither call
+-- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
+drawAnnotation
+  :: C.Context2D
+  -> Number
+  -> Number
+  -> String
+  -> Number
+  -> Effect Unit
+drawAnnotation ctx y markerLen ann x = do
+  -- TODO Make adaptable
+  newLineWidth ctx 1.0
+  C.moveTo ctx x y
+  C.lineTo ctx x (y - markerLen)
+  drawLabel ctx y (- markerLen) ann x
+
+-- | Given a number line's y-coordinate, a distance (in x), a label text and an
+-- | x-coordinate, draws a labels with the corresponding text to the provided
+-- | context's canvas at that position.
+-- |
+-- | Only adds to the current path, does neither call
+-- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
+drawLabel :: C.Context2D -> Number -> Number -> String -> Number -> Effect Unit
+drawLabel ctx y dist label x = do
+  { width } <- C.measureText ctx label
   let fontHeight = 20
   C.setFont ctx (show fontHeight <> "px Arial")
-  C.fillText ctx text (x - width / 2.0) (y + len +
-    if len > 0.0 then I.toNumber fontHeight else - I.toNumber fontHeight / 4.0)
-
-newLineWidth :: C.Context2D -> Number -> Effect Unit
-newLineWidth ctx width = do
-  -- I need to stroke and begin a new path whenever I change the line width.
-  C.stroke ctx
-  C.beginPath ctx
-  C.setLineWidth ctx width
+  C.fillText ctx label (x - width / 2.0) (y + dist +
+    if dist > 0.0 then I.toNumber fontHeight else - I.toNumber fontHeight / 4.0)
