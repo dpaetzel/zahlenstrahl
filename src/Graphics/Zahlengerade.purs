@@ -150,10 +150,6 @@ toLabel num =
 drawNumberLine :: C.Context2D -> NumberLine -> Effect Unit
 drawNumberLine ctx numLine = do
 
-  -- TODO I can calculate the width required here from the offset of the first
-  -- number and its label's width (this way I can fix very large numbers from
-  -- being cut off)
-
   -- TODO Consider rounding to .5 (or .0, depending on line width) to unblur
   let y = I.toNumber numLine.canvas.height / 2.0
 
