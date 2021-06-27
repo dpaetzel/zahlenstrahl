@@ -150,8 +150,7 @@ toLabel num =
 drawNumberLine :: C.Context2D -> NumberLine -> Effect Unit
 drawNumberLine ctx numLine = do
 
-  -- TODO Consider rounding to .5 (or .0, depending on line width) to unblur
-  let y = I.toNumber numLine.canvas.height / 2.0
+  let y = roundToDot5 $ I.toNumber numLine.canvas.height / 2.0
 
   -- Make sure that the first label is not cut off.
   xOffset <- (_ / 2.0) <$> (labelWidth ctx $ toLabel numLine.start)
