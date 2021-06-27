@@ -89,7 +89,7 @@ type Transformation =
   , to :: { start :: Number, end :: Number}
   }
 
--- | Retrieve the transformation described implicitly by the given number line
+-- | Retrieves the transformation described implicitly by the given number line
 -- | and arrow configurations.
 transformation :: NumberLine -> Arrow -> Transformation
 transformation numLine arr =
@@ -100,7 +100,7 @@ transformation numLine arr =
     }
   }
 
--- | Apply a transformation to a number (i.e. transforming it to the
+-- | Applies a transformation to a number (i.e. transforming it to the
 -- | corresponding number in the target space).
 transform :: Transformation -> Number -> Number
 transform t n =
@@ -109,6 +109,13 @@ transform t n =
       * (t.to.end - t.to.start)
   -- TODO Probably round x values here to the nearest .5? Or, depending on
   -- linewidth of the tick to .5 or .0
+
+-- | Rounds to the closest number of the form *.5.
+-- |
+-- | Useful since lines in HTML canvas can be blurry if not drawn at
+-- | .5-positions.
+roundToDot5 :: Number -> Number
+roundToDot5 = (_ + 0.5) <<< M.round
 
 -- | Given a start and end and a step size, provides the set (array) of steps.
 steps
@@ -127,7 +134,7 @@ steps { start, end } d =
 -- | provided length and then transforms those steps to the transformation's
 -- | target space.
 xCoordsSteps :: Transformation -> Number -> Array Number
-xCoordsSteps t = map (transform t) <<< steps t.from
+xCoordsSteps t = map (roundToDot5 <<< transform t) <<< steps t.from
 
 -- | Transforms a number to a (German) number label.
 toLabel :: Number -> String
@@ -170,7 +177,7 @@ drawNumberLine ctx numLine = do
   let xsMini = (_ \\ (xs <> xsMed)) $ xCoordsSteps t numLine.miniStep
   drawTicks ctx y miniTickLength xsMini
 
-  let xsAnn = map (transform t <<< _.place) numLine.annotations
+  let xsAnn = map (roundToDot5 <<< transform t <<< _.place) numLine.annotations
   drawAnnotations ctx y markerLength (map _.label numLine.annotations) xsAnn
 
 -- | Given a number line's y-coordinate and a set of x-coordinates, draws a tick
