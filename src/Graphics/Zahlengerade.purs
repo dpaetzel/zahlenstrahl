@@ -6,22 +6,21 @@ where
 
 import Prelude
 
+import Control.Monad.Reader (asks)
 import Data.Array (zipWith, (..), (\\))
 import Data.Int as I
 import Data.Traversable (sequence_)
-import Effect (Effect)
--- import Effect.Class.Console (log)
-import Math as M
+import Data.String as S
 import Graphics.Canvas as C
+import Math as M
+
+import Graphics.Zahlengerade.Arrow (Arrow, arrow, drawArrow)
 import Graphics.Zahlengerade.Canvas
   ( Canvas
   , asRect
   , clearCanvas
-  , newLineWidth
   )
-import Data.String as S
-
-import Graphics.Zahlengerade.Arrow (Arrow, arrow, drawArrow)
+import Graphics.Zahlengerade.CanvasEff
 
 -- TODO Make adaptable
 fontHeight :: Int
@@ -147,33 +146,34 @@ toLabel num =
 -- |
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
-drawNumberLine :: C.Context2D -> NumberLine -> Effect Unit
-drawNumberLine ctx numLine = do
+-- drawNumberLine :: forall m. MonadCanvas m => NumberLine -> m Unit
+drawNumberLine :: NumberLine -> CanvasEff Unit
+drawNumberLine numLine = do
 
   let y = roundToDot5 $ I.toNumber numLine.canvas.height / 2.0
 
   -- Make sure that the first label is not cut off.
-  xOffset <- (_ / 2.0) <$> (labelWidth ctx $ toLabel numLine.start)
+  xOffset <- (_ / 2.0) <$> (labelWidth $ toLabel numLine.start)
   let arr = arrow numLine.canvas tickLength xOffset
-  drawArrow ctx arr
+  drawArrow arr
 
   let t = transformation numLine arr
 
   let xs = xCoordsSteps t numLine.step
-  drawTicks ctx y tickLength xs
+  drawTicks y tickLength xs
 
   let labelSteps = steps t.from numLine.step
   let labels = map toLabel labelSteps
-  drawTickLabels ctx y tickLength labels xs
+  drawTickLabels y tickLength labels xs
 
   let xsMed = (_ \\ xs) $ xCoordsSteps t numLine.mediumStep
-  drawTicks ctx y mediumTickLength xsMed
+  drawTicks y mediumTickLength xsMed
 
   let xsMini = (_ \\ (xs <> xsMed)) $ xCoordsSteps t numLine.miniStep
-  drawTicks ctx y miniTickLength xsMini
+  drawTicks y miniTickLength xsMini
 
   let xsAnn = map (roundToDot5 <<< transform t <<< _.place) numLine.annotations
-  drawAnnotations ctx y markerLength (map _.label numLine.annotations) xsAnn
+  drawAnnotations y markerLength (map _.label numLine.annotations) xsAnn
 
 -- | Given a number line's y-coordinate and a set of x-coordinates, draws a tick
 -- | of the given length for each of the x-coordinates to the provided context's
@@ -182,25 +182,27 @@ drawNumberLine ctx numLine = do
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
 drawTicks
-  :: C.Context2D
-  -> Number
+  :: Number
   -> Number
   -> Array Number
-  -> Effect Unit
-drawTicks ctx y len xs = sequence_ $ map (drawTick ctx y len) xs
+  -> CanvasEff Unit
+drawTicks y len xs = sequence_ $ map (drawTick y len) xs
 
 -- | Given a number line's y-coordinate as well as an x-coordinate and a length,
 -- | draws a tick to the provided context's canvas at that position.
 -- |
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
-drawTick :: C.Context2D -> Number -> Number -> Number -> Effect Unit
-drawTick ctx y len x = do
+drawTick
+  :: Number -> Number -> Number -> CanvasEff Unit
+drawTick y len x = do
   -- TODO Make adaptable
-  newLineWidth ctx 1.0
+  newLineWidth 1.0
 
-  C.moveTo ctx x (y - len)
-  C.lineTo ctx x (y + len)
+  { ctx } <- ask
+  liftEffect $ do
+    C.moveTo ctx x (y - len)
+    C.lineTo ctx x (y + len)
 
 -- | Given a number line's y-coordinate and sets of x-coordinates and labels,
 -- | draws the tick scale labels to the provided context's canvas at that
@@ -209,14 +211,13 @@ drawTick ctx y len x = do
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
 drawTickLabels
-  :: C.Context2D
-  -> Number
+  :: Number
   -> Number
   -> Array String
   -> Array Number
-  -> Effect Unit
-drawTickLabels ctx y tickLen labels xs =
-  sequence_ $ zipWith (drawLabel ctx y tickLen) labels xs
+  -> CanvasEff Unit
+drawTickLabels y tickLen labels xs =
+  sequence_ $ zipWith (drawLabel y tickLen) labels xs
 
 -- | Given a number line's y-coordinate and sets of x-coordinates and
 -- | annotations, draws the labels to the provided context's canvas at that
@@ -226,32 +227,32 @@ drawTickLabels ctx y tickLen labels xs =
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
 drawAnnotations
-  :: C.Context2D
-  -> Number
+  :: Number
   -> Number
   -> Array String
   -> Array Number
-  -> Effect Unit
-drawAnnotations ctx y markerLen anns xs =
-  sequence_ $ zipWith (drawAnnotation ctx y markerLen) anns xs
+  -> CanvasEff Unit
+drawAnnotations y markerLen anns xs =
+  sequence_ $ zipWith (drawAnnotation y markerLen) anns xs
 
 -- | Draw a single annotation, see `drawAnnotations`.
 -- |
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
 drawAnnotation
-  :: C.Context2D
-  -> Number
+  :: Number
   -> Number
   -> String
   -> Number
-  -> Effect Unit
-drawAnnotation ctx y markerLen ann x = do
+  -> CanvasEff Unit
+drawAnnotation y markerLen ann x = do
   -- TODO Make adaptable
-  newLineWidth ctx 1.0
-  C.moveTo ctx x y
-  C.lineTo ctx x (y - markerLen)
-  drawLabel ctx y (- markerLen) ann x
+  newLineWidth 1.0
+  { ctx } <- ask
+  liftEffect $ do
+    C.moveTo ctx x y
+    C.lineTo ctx x (y - markerLen)
+  drawLabel y (- markerLen) ann x
 
 -- | Given a number line's y-coordinate, a distance (in x), a label text and an
 -- | x-coordinate, draws a labels with the corresponding text to the provided
@@ -259,19 +260,29 @@ drawAnnotation ctx y markerLen ann x = do
 -- |
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
-drawLabel :: C.Context2D -> Number -> Number -> String -> Number -> Effect Unit
-drawLabel ctx y dist label x = do
-  width <- labelWidth ctx label
-  setFont ctx
-  C.fillText ctx label (x - width / 2.0) (y + dist +
-    if dist > 0.0 then I.toNumber fontHeight else - I.toNumber fontHeight / 4.0)
+drawLabel
+  :: Number
+  -> Number
+  -> String
+  -> Number
+  -> CanvasEff Unit
+drawLabel y dist label x = do
+  width <- labelWidth label
+  setFont
+  { ctx } <- ask
+  fh <- fontHeight
+  liftEffect $ C.fillText ctx label (x - width / 2.0) (y + dist +
+    if dist > 0.0 then I.toNumber fh else - I.toNumber fh / 4.0)
 
-setFont :: C.Context2D -> Effect Unit
-setFont ctx =
-  C.setFont ctx (show fontHeight <> "px Arial")
+setFont :: CanvasEff Unit
+setFont = do
+  { ctx } <- ask
+  fh <- fontHeight
+  liftEffect $ C.setFont ctx (show fh <> "px Arial")
 
-labelWidth :: C.Context2D -> String -> Effect Number
-labelWidth ctx label = do
-  setFont ctx
-  { width } <- C.measureText ctx label
+labelWidth :: String -> CanvasEff Number
+labelWidth label = do
+  setFont
+  { ctx } <- ask
+  { width } <- liftEffect $ C.measureText ctx label
   pure width

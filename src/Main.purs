@@ -18,6 +18,7 @@ import Halogen.VDom.Driver (runUI)
 import Halogen.Themes.Bootstrap4 as BS
 import Partial.Unsafe (unsafePartial)
 
+import Graphics.Zahlengerade.CanvasEff (runCanvasEff)
 import Graphics.Zahlengerade
   ( Annotation
   , Canvas
@@ -147,7 +148,7 @@ handleAction' action = do
 
     clearCanvas ctx state.canvas
 
-    drawNumberLine ctx state
+    runCanvasEff (drawNumberLine state) { ctx : ctx, res : 1.0 }
 
     C.stroke ctx
 

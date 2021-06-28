@@ -33,9 +33,3 @@ strokeCanvas ctx lineWidth cv = do
   C.setLineWidth ctx 2.0
   C.rect ctx rect
 
-newLineWidth :: C.Context2D -> Number -> Effect Unit
-newLineWidth ctx width = do
-  -- I need to stroke and begin a new path whenever I change the line width.
-  C.stroke ctx
-  C.beginPath ctx
-  C.setLineWidth ctx width

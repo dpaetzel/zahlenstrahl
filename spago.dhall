@@ -15,6 +15,7 @@
   , "prelude"
   , "psci-support"
   , "strings"
+  , "transformers"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs" ]
