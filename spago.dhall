@@ -2,6 +2,7 @@
 , dependencies =
   [ "arrays"
   , "canvas"
+  , "canvas-action"
   , "console"
   , "effect"
   , "foldable-traversable"

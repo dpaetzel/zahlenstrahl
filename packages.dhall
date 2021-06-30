@@ -10,3 +10,11 @@ in  upstream
     , version =
         "v0.2.0"
     }
+  with canvas-action =
+    -- I just copied these from the spago.dhall from that project
+    { dependencies = [ "console", "effect", "halogen", "psci-support" ]
+    , repo =
+        "https://github.com/artemisSystem/purescript-canvas-action"
+    , version =
+        "v7.0.0"
+    }
