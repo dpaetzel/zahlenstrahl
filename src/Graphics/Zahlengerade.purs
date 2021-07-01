@@ -6,12 +6,25 @@ where
 
 import Prelude
 
-import Control.Monad.Reader (asks)
 import Data.Array (zipWith, (..), (\\))
 import Data.Int as I
 import Data.Traversable (sequence_)
 import Data.String as S
-import Graphics.Canvas as C
+import Graphics.CanvasAction
+  ( class MonadCanvasAction
+  , fillText
+  , measureText
+  , setFont
+  , setLineWidth
+  ) as CA
+import Graphics.CanvasAction.Path
+  ( PathAction
+  , lineTo
+  , moveTo
+  , runPath
+  , stroke
+  ) as CA
+import Data.Vector.Polymorphic.Types (Vector2(..))
 import Math as M
 
 import Graphics.Zahlengerade.Arrow (Arrow, arrow, drawArrow)
@@ -20,7 +33,6 @@ import Graphics.Zahlengerade.Canvas
   , asRect
   , clearCanvas
   )
-import Graphics.Zahlengerade.CanvasEff
 
 -- TODO Make adaptable
 fontHeight :: Int
@@ -143,37 +155,40 @@ toLabel num =
 
 -- | Draws the number line described by the provided config to the provided
 -- | context's canvas.
--- |
--- | Only adds to the current path, does neither call
--- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
--- drawNumberLine :: forall m. MonadCanvas m => NumberLine -> m Unit
-drawNumberLine :: NumberLine -> CanvasEff Unit
+drawNumberLine :: forall m. CA.MonadCanvasAction m => NumberLine -> m Unit
 drawNumberLine numLine = do
 
   let y = roundToDot5 $ I.toNumber numLine.canvas.height / 2.0
 
   -- Make sure that the first label is not cut off.
   xOffset <- (_ / 2.0) <$> (labelWidth $ toLabel numLine.start)
+
   let arr = arrow numLine.canvas tickLength xOffset
-  drawArrow arr
+  -- TODO Make adaptable
+  CA.setLineWidth 2.0
+  flip bind CA.stroke $ CA.runPath $ drawArrow arr
+
+  -- TODO Make adaptable
+  CA.setLineWidth 2.0
 
   let t = transformation numLine arr
 
   let xs = xCoordsSteps t numLine.step
-  drawTicks y tickLength xs
-
   let labelSteps = steps t.from numLine.step
   let labels = map toLabel labelSteps
-  drawTickLabels y tickLength labels xs
-
   let xsMed = (_ \\ xs) $ xCoordsSteps t numLine.mediumStep
-  drawTicks y mediumTickLength xsMed
-
   let xsMini = (_ \\ (xs <> xsMed)) $ xCoordsSteps t numLine.miniStep
-  drawTicks y miniTickLength xsMini
-
   let xsAnn = map (roundToDot5 <<< transform t <<< _.place) numLine.annotations
-  drawAnnotations y markerLength (map _.label numLine.annotations) xsAnn
+  let anns = map _.label numLine.annotations
+
+  flip bind CA.stroke $ CA.runPath $ do
+    drawTicks y tickLength xs
+    drawTicks y mediumTickLength xsMed
+    drawTicks y miniTickLength xsMini
+    sequence_ $ zipWith (drawAnnotationMarker y markerLength) anns xsAnn
+
+  drawTickLabels y tickLength labels xs
+  sequence_ $ zipWith (drawLabel y (- markerLength)) anns xsAnn
 
 -- | Given a number line's y-coordinate and a set of x-coordinates, draws a tick
 -- | of the given length for each of the x-coordinates to the provided context's
@@ -185,37 +200,31 @@ drawTicks
   :: Number
   -> Number
   -> Array Number
-  -> CanvasEff Unit
+  -> CA.PathAction Unit
 drawTicks y len xs = sequence_ $ map (drawTick y len) xs
 
 -- | Given a number line's y-coordinate as well as an x-coordinate and a length,
--- | draws a tick to the provided context's canvas at that position.
+-- | constructs a path action that draws a tick to the provided context's canvas
+-- | at that position.
 -- |
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
 drawTick
-  :: Number -> Number -> Number -> CanvasEff Unit
+  :: Number -> Number -> Number -> CA.PathAction Unit
 drawTick y len x = do
-  -- TODO Make adaptable
-  newLineWidth 1.0
-
-  { ctx } <- ask
-  liftEffect $ do
-    C.moveTo ctx x (y - len)
-    C.lineTo ctx x (y + len)
+  CA.moveTo $ Vector2 x (y - len)
+  CA.lineTo $ Vector2 x (y + len)
 
 -- | Given a number line's y-coordinate and sets of x-coordinates and labels,
 -- | draws the tick scale labels to the provided context's canvas at that
 -- | position. Tick scale labels are, by default, drawn below the number line.
--- |
--- | Only adds to the current path, does neither call
--- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
 drawTickLabels
-  :: Number
+  :: forall m. CA.MonadCanvasAction m
+  => Number
   -> Number
   -> Array String
   -> Array Number
-  -> CanvasEff Unit
+  -> m Unit
 drawTickLabels y tickLen labels xs =
   sequence_ $ zipWith (drawLabel y tickLen) labels xs
 
@@ -223,36 +232,30 @@ drawTickLabels y tickLen labels xs =
 -- | annotations, draws the labels to the provided context's canvas at that
 -- | position. Annotations are drawn above the number line with markers which
 -- | are basically (usually longer) ticks that do not cross the line.
--- |
--- | Only adds to the current path, does neither call
--- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
-drawAnnotations
-  :: Number
-  -> Number
-  -> Array String
-  -> Array Number
-  -> CanvasEff Unit
-drawAnnotations y markerLen anns xs =
-  sequence_ $ zipWith (drawAnnotation y markerLen) anns xs
+-- drawAnnotations
+--   :: forall m. CA.MonadCanvasAction m
+--   => Number
+--   -> Number
+--   -> Array String
+--   -> Array Number
+--   -> m Unit
+-- drawAnnotations y markerLen anns xs = do
 
--- | Draw a single annotation, see `drawAnnotations`.
--- |
--- | Only adds to the current path, does neither call
--- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
-drawAnnotation
+-- | Constructs a path action that draws a single annotation marker.
+-- | Annotation markers are basically (usually longer) ticks that do not cross
+-- | the number line.
+drawAnnotationMarker
   :: Number
   -> Number
   -> String
   -> Number
-  -> CanvasEff Unit
-drawAnnotation y markerLen ann x = do
+  -> CA.PathAction Unit
+drawAnnotationMarker y markerLen ann x = do
   -- TODO Make adaptable
-  newLineWidth 1.0
-  { ctx } <- ask
-  liftEffect $ do
-    C.moveTo ctx x y
-    C.lineTo ctx x (y - markerLen)
-  drawLabel y (- markerLen) ann x
+  -- TODO Reintroduce
+  -- newLineWidth 1.0
+  CA.moveTo $ Vector2 x y
+  CA.lineTo $ Vector2 x (y - markerLen)
 
 -- | Given a number line's y-coordinate, a distance (in x), a label text and an
 -- | x-coordinate, draws a labels with the corresponding text to the provided
@@ -261,28 +264,25 @@ drawAnnotation y markerLen ann x = do
 -- | Only adds to the current path, does neither call
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
 drawLabel
-  :: Number
+  :: forall m. CA.MonadCanvasAction m
+  => Number
   -> Number
   -> String
   -> Number
-  -> CanvasEff Unit
+  -> m Unit
 drawLabel y dist label x = do
   width <- labelWidth label
   setFont
-  { ctx } <- ask
-  fh <- fontHeight
-  liftEffect $ C.fillText ctx label (x - width / 2.0) (y + dist +
+  let fh = fontHeight
+  CA.fillText label $ Vector2 (x - width / 2.0) (y + dist +
     if dist > 0.0 then I.toNumber fh else - I.toNumber fh / 4.0)
 
-setFont :: CanvasEff Unit
+setFont :: forall m. CA.MonadCanvasAction m => m Unit
 setFont = do
-  { ctx } <- ask
-  fh <- fontHeight
-  liftEffect $ C.setFont ctx (show fh <> "px Arial")
+  CA.setFont (show fontHeight <> "px Arial")
 
-labelWidth :: String -> CanvasEff Number
+labelWidth :: forall m. CA.MonadCanvasAction m => String -> m Number
 labelWidth label = do
   setFont
-  { ctx } <- ask
-  { width } <- liftEffect $ C.measureText ctx label
+  { width } <- CA.measureText label
   pure width

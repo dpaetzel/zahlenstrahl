@@ -12,9 +12,47 @@ in  upstream
     }
   with canvas-action =
     -- I just copied these from the spago.dhall from that project
-    { dependencies = [ "console", "effect", "halogen", "psci-support" ]
+    { dependencies =
+      [ "aff"
+      , "arrays"
+      , "canvas"
+      , "colors"
+      , "effect"
+      , "either"
+      , "exceptions"
+      , "foldable-traversable"
+      , "math"
+      , "maybe"
+      , "numbers"
+      , "polymorphic-vectors"
+      , "prelude"
+      , "refs"
+      , "run"
+      , "transformers"
+      , "tuples"
+      , "type-equality"
+      , "typelevel-prelude"
+      , "unsafe-coerce"
+      , "web-dom"
+      , "web-events"
+      , "web-html"
+      ]
     , repo =
         "https://github.com/artemisSystem/purescript-canvas-action"
     , version =
         "v7.0.0"
+    }
+  with polymorphic-vectors =
+    { dependencies =
+      [ "distributive"
+      , "foldable-traversable"
+      , "math"
+      , "prelude"
+      , "record"
+      , "typelevel-prelude"
+      ]
+    , repo =
+        "https://github.com/artemisSystem/purescript-polymorphic-vectors"
+    , version =
+        "v3.0.0"
     }

@@ -3,15 +3,11 @@ module Graphics.Zahlengerade.Arrow where
 import Prelude
 
 import Data.Int as I
+import Data.Vector.Polymorphic.Types (Vector2(..))
 import Math as M
-import Graphics.Canvas as C
+import Graphics.CanvasAction.Path as CA
+
 import Graphics.Zahlengerade.Canvas (Canvas)
-import Graphics.Zahlengerade.CanvasEff
-  ( CanvasEff
-  , ask
-  , liftEffect
-  , newLineWidth
-  )
 
 type Coord =
   { x :: Number
@@ -43,22 +39,21 @@ arrow cv headLength xOffset =
 -- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
 drawArrow
   :: Arrow
-  -> CanvasEff Unit
+  -> CA.PathAction Unit
 drawArrow arr = do
   let to = arr.to
   let from = arr.from
-  -- TODO Make adaptable
-  newLineWidth 2.0
 
   let angle = M.atan2 (to.y - from.y) (to.x - from.x)
 
-  { ctx } <- ask
-
-  liftEffect $ do
-    C.moveTo ctx from.x from.y
-    C.lineTo ctx to.x to.y
-    C.moveTo ctx (to.x - arr.headLength * M.cos (angle - M.pi / 6.0))
+  CA.moveTo $ Vector2 from.x from.y
+  CA.lineTo $ Vector2 to.x to.y
+  CA.moveTo $
+    Vector2
+      (to.x - arr.headLength * M.cos (angle - M.pi / 6.0))
       (to.y - arr.headLength * M.sin (angle - M.pi / 6.0))
-    C.lineTo ctx to.x to.y
-    C.lineTo ctx (to.x - arr.headLength * M.cos (angle + M.pi / 6.0))
+  CA.lineTo $ Vector2 to.x to.y
+  CA.lineTo $
+    Vector2
+      (to.x - arr.headLength * M.cos (angle + M.pi / 6.0))
       (to.y - arr.headLength * M.sin (angle + M.pi / 6.0))

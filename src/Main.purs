@@ -3,12 +3,11 @@ module Main where
 import Prelude
 
 import Data.Array (deleteAt, length, snoc, updateAt, zipWith, (..))
-import Data.Int as I
 import Data.Number as N
 import Data.Maybe (Maybe(..), fromMaybe)
 import Effect (Effect)
 import Effect.Class (class MonadEffect)
-import Graphics.Canvas as C
+import Graphics.CanvasAction as CA
 import Halogen as H
 import Halogen.Aff as HA
 import Halogen.HTML as HH
@@ -18,13 +17,11 @@ import Halogen.VDom.Driver (runUI)
 import Halogen.Themes.Bootstrap4 as BS
 import Partial.Unsafe (unsafePartial)
 
-import Graphics.Zahlengerade.CanvasEff (runCanvasEff)
 import Graphics.Zahlengerade
   ( Annotation
   , Canvas
   , NumberLine
   , defAnnotation
-  , clearCanvas
   , defNumberLine
   , drawNumberLine
   )
@@ -141,16 +138,12 @@ handleAction' action = do
   handleAction action
   state <- H.get
   H.liftEffect $ void $ unsafePartial do
-    Just canvas <- C.getCanvasElementById canvasID
-    ctx <- C.getContext2D canvas
+    Just canvas <- CA.getCanvasElementById canvasID
+    ctx <- CA.getContext2D canvas
 
-    C.beginPath ctx
-
-    clearCanvas ctx state.canvas
-
-    runCanvasEff (drawNumberLine state) { ctx : ctx, res : 1.0 }
-
-    C.stroke ctx
+    CA.runAction ctx $ do
+      CA.clearRectFull
+      drawNumberLine state
 
     -- TODO Add download support. This probably requires a component output and
     -- another component has to listen to that and display a download button.

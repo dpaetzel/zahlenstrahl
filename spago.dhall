@@ -13,6 +13,7 @@
   , "maybe"
   , "numbers"
   , "partial"
+  , "polymorphic-vectors"
   , "prelude"
   , "psci-support"
   , "strings"
