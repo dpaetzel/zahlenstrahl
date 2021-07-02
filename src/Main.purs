@@ -2,12 +2,19 @@ module Main where
 
 import Prelude
 
+import Control.Monad.Rec.Class (forever)
 import Data.Array (deleteAt, length, snoc, updateAt, zipWith, (..))
+import Data.Int as I
 import Data.Number as N
 import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Vector.Polymorphic ((><))
+import Effect.Aff.Class (class MonadAff)
+import Effect.Aff as Aff
 import Effect (Effect)
-import Effect.Class (class MonadEffect)
+import Effect.Exception (throw)
 import Graphics.CanvasAction as CA
+import Graphics.CanvasAction.CSSOM (devicePixelRatio)
+import Graphics.ScaleForDPR as DPR
 import Halogen as H
 import Halogen.Aff as HA
 import Halogen.HTML as HH
@@ -15,13 +22,14 @@ import Halogen.HTML.Properties as HP
 import Halogen.HTML.Events as HE
 import Halogen.VDom.Driver (runUI)
 import Halogen.Themes.Bootstrap4 as BS
-import Partial.Unsafe (unsafePartial)
+import Halogen.Subscription as HS
 
 import Graphics.Zahlengerade
   ( Annotation
   , Canvas
   , NumberLine
   , defAnnotation
+  , defCanvas
   , defNumberLine
   , drawNumberLine
   )
@@ -36,7 +44,9 @@ type Input = Unit
 type State = NumberLine
 
 data Action
-  = Add
+  = Initialize
+  | Refresh
+  | Add
   | Edit Int Annotation
   | Remove Int
   | ChangeStart Number
@@ -69,15 +79,15 @@ intSettings =
   ]
 
 component
-  :: forall query output m.
-     MonadEffect m => H.Component query Input output m
+  :: forall query output m. MonadAff m
+  => H.Component query Input output m
 component =
   H.mkComponent
     { initialState
     , render
     , eval : H.mkEval $ H.defaultEval
       { handleAction = handleAction'
-      , initialize = Just Add
+      , initialize = Just Initialize
       }
     }
   where
@@ -134,17 +144,23 @@ render state =
 canvasID :: String
 canvasID = "canvas"
 
+getCtx :: Effect CA.Context2D
+getCtx = CA.getCanvasElementById canvasID >>= case _ of
+  Just cv -> CA.getContext2D cv
+  Nothing -> throw "No canvas"
+
 handleAction'
-  :: forall output m.
-     MonadEffect m => Action -> H.HalogenM State Action () output m Unit
+  :: forall output m. MonadAff m
+  => Action -> H.HalogenM State Action () output m Unit
 handleAction' action = do
   handleAction action
   state <- H.get
-  H.liftEffect $ void $ unsafePartial do
-    Just canvas <- CA.getCanvasElementById canvasID
-    ctx <- CA.getContext2D canvas
+  H.liftEffect $ void $ do
+    ctx <- getCtx
 
     CA.runAction ctx $ do
+      dpr <- devicePixelRatio
+      DPR.scaleForDPROnce (I.toNumber defCanvas.width >< I.toNumber defCanvas.height) dpr
       CA.clearRectFull
       drawNumberLine state
 
@@ -152,11 +168,23 @@ handleAction' action = do
     -- another component has to listen to that and display a download button.
     -- url <- C.canvasToDataURL canvas
 
+pushDPR
+  :: forall m a. MonadAff m
+  => HS.Listener Action -> m (Aff.Fiber a)
+pushDPR listener = H.liftAff $ do
+  Aff.forkAff $ forever do
+    _ <- DPR.getDPRChange
+    H.liftEffect $ HS.notify listener Refresh
 
 handleAction
-  :: forall output m.
-     Action -> H.HalogenM State Action () output m Unit
+  :: forall output m. MonadAff m
+  => Action -> H.HalogenM State Action () output m Unit
 handleAction = case _ of
+  Refresh -> pure mempty
+  Initialize -> do
+    { emitter, listener } <- H.liftEffect HS.create
+    void $ H.subscribe emitter
+    void $ pushDPR listener
   Add ->
     H.modify_ \state ->
       state { annotations = snoc state.annotations defAnnotation }

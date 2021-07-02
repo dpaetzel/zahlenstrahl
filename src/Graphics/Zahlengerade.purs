@@ -68,7 +68,6 @@ type NumberLine =
     , miniStep    :: Number
     , annotations :: Array Annotation
     , canvas :: Canvas
-    , resolution :: Int
     }
 
 -- | Default canvas dimensions.
@@ -88,7 +87,6 @@ defNumberLine =
     , { place : 2.71, label : "e"}
     ]
   , canvas : defCanvas
-  , resolution : 1
   }
 
 -- | Represents a transformation from one (one-dimensional) space to another.
@@ -169,7 +167,7 @@ drawNumberLine numLine = do
   flip bind CA.stroke $ CA.runPath $ drawArrow arr
 
   -- TODO Make adaptable
-  CA.setLineWidth 2.0
+  CA.setLineWidth 1.0
 
   let t = transformation numLine arr
 

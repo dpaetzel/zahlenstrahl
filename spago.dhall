@@ -1,10 +1,12 @@
 { name = "halogen-project"
 , dependencies =
-  [ "arrays"
+  [ "aff"
+  , "arrays"
   , "canvas"
   , "canvas-action"
   , "console"
   , "effect"
+  , "either"
   , "foldable-traversable"
   , "halogen"
   , "halogen-bootstrap4"
@@ -16,8 +18,11 @@
   , "polymorphic-vectors"
   , "prelude"
   , "psci-support"
+  , "refs"
   , "strings"
-  , "transformers"
+  , "web-cssom"
+  , "web-events"
+  , "web-html"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs" ]
