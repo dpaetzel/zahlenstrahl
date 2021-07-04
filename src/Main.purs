@@ -100,6 +100,30 @@ component =
   where
     initialState = const defNumberLine
 
+doc :: forall w i. HH.HTML w i
+doc =
+  HH.div_
+  [ HH.h3_ [ HH.text "Tipps" ]
+  , HH.ul_
+    [ HH.li_
+      [ HH.text $
+        "Zwischenschritte können unsichtbar gemacht werden, indem "
+        <> " ihr Wert auf eine Zahl größer als "
+      , HH.em_ [ HH.text "Ende" ]
+      , HH.text " gesetzt wird."
+      ]
+    , mkLi $
+      "Bisher gibts keine Download-Option. Einfach Snipping-Tool o.ä. "
+      <> "verwenden."
+    , mkLi $
+      "Eigentlich sollte die Abbildung nie unscharf sein, falls doch, lässt "
+      <> "sich dies meist über eine Anpassung der Zoom-Stufe des Browsers "
+      <> "beheben."
+    ]
+  ]
+  where
+    mkLi txt = HH.li_ [ HH.text txt ]
+
 render :: forall m. State -> H.ComponentHTML Action () m
 render state =
   HH.div_ $
@@ -120,7 +144,7 @@ render state =
           , HH.tbody_ annotations
           , addButton
           ]
-        , mkColumn' []
+        , mkColumn BS.col4 [doc]
         ]
       ]
     ]
@@ -208,6 +232,7 @@ handleAction = case _ of
   ChangeStart s ->
     H.modify_ \state -> state { start = s }
   ChangeEnd s ->
+    -- TODO Add safety check (e.g. if end - start / step is too large, then it hangs)
     H.modify_ \state -> state { end = s }
   ChangeStep s ->
     H.modify_ \state -> state { step = s }
