@@ -126,8 +126,7 @@ render state =
           [ mkCanvas state.numLine.canvas ]
         ]
       , mkRow
-        [ mkColumn BS.col10 []
-        , mkColumn BS.col2
+        [ mkColumn BS.mxAuto
           [ downloadButton
           ]
         ]
@@ -194,7 +193,7 @@ render state =
                 , BS.mb5
                 ]
               ]
-              [ HH.text " Download"
+              [ HH.text " Abbildung herunterladen"
               ]
 
 canvasID :: String
