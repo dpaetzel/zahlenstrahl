@@ -7,6 +7,7 @@ import Data.Array (deleteAt, length, snoc, updateAt, zipWith, (..))
 import Data.Int as I
 import Data.Number as N
 import Data.Maybe (Maybe(..), fromMaybe)
+import Data.String as S
 import Data.Vector.Polymorphic ((><))
 import Effect.Aff.Class (class MonadAff)
 import Effect.Aff as Aff
@@ -48,7 +49,10 @@ main = HA.runHalogenAff do
 
 type Input = Unit
 
-type State = NumberLine
+type State =
+  { numLine :: NumberLine
+  , dataURL :: Maybe String
+  }
 
 data Action
   = Initialize
@@ -72,17 +76,17 @@ type Setting a =
 
 settings :: Array (Setting Number)
 settings =
-  [ { label : "Beginn"        , accessor : _.start         , action : ChangeStart }
-  , { label : "Ende"          , accessor : _.end           , action : ChangeEnd }
-  , { label : "Schritt"       , accessor : _.step          , action : ChangeStep }
-  , { label : "Mittelschritt" , accessor : _.mediumStep    , action : ChangeMediumStep }
-  , { label : "Minischritt"   , accessor : _.miniStep      , action : ChangeMiniStep }
+  [ { label : "Beginn"        , accessor : _.numLine.start         , action : ChangeStart }
+  , { label : "Ende"          , accessor : _.numLine.end           , action : ChangeEnd }
+  , { label : "Schritt"       , accessor : _.numLine.step          , action : ChangeStep }
+  , { label : "Mittelschritt" , accessor : _.numLine.mediumStep    , action : ChangeMediumStep }
+  , { label : "Minischritt"   , accessor : _.numLine.miniStep      , action : ChangeMiniStep }
   ]
 
 intSettings :: Array (Setting Int)
 intSettings =
-  [ { label : "Breite (px)"   , accessor : _.canvas.width  , action : ChangeWidth }
-  , { label : "Höhe (px)"     , accessor : _.canvas.height , action : ChangeHeight }
+  [ { label : "Breite (px)"   , accessor : _.numLine.canvas.width  , action : ChangeWidth }
+  , { label : "Höhe (px)"     , accessor : _.numLine.canvas.height , action : ChangeHeight }
   ]
 
 component
@@ -98,28 +102,17 @@ component =
       }
     }
   where
-    initialState = const defNumberLine
+    initialState = const { numLine : defNumberLine, dataURL : Nothing }
 
 doc :: forall w i. HH.HTML w i
 doc =
   HH.div_
-  [ HH.h3_ [ HH.text "Tipps" ]
-  , HH.ul_
-    [ HH.li_
-      [ HH.text $
-        "Zwischenschritte können unsichtbar gemacht werden, indem "
-        <> " ihr Wert auf eine Zahl größer als "
-      , HH.em_ [ HH.text "Ende" ]
-      , HH.text " gesetzt wird."
-      ]
-    , mkLi $
-      "Bisher gibts keine Download-Option. Einfach Snipping-Tool o.ä. "
-      <> "verwenden."
-    , mkLi $
-      "Eigentlich sollte die Abbildung nie unscharf sein, falls doch, lässt "
-      <> "sich dies meist über eine Anpassung der Zoom-Stufe des Browsers "
-      <> "beheben."
-    ]
+  [ HH.h4_ [ HH.text "Tipp" ]
+  , HH.text $
+    "Zwischenschritte können unsichtbar gemacht werden, indem "
+    <> " ihr Wert auf eine Zahl größer als "
+  , HH.em_ [ HH.text "Ende" ]
+  , HH.text " gesetzt wird."
   ]
   where
     mkLi txt = HH.li_ [ HH.text txt ]
@@ -130,12 +123,18 @@ render state =
     [ HH.div_ $
       [ mkRow
         [ mkColumn BS.mxAuto
-          [ mkCanvas state.canvas ]
+          [ mkCanvas state.numLine.canvas ]
+        ]
+      , mkRow
+        [ mkColumn BS.col10 []
+        , mkColumn BS.col2
+          [ downloadButton
+          ]
         ]
       , mkRow
         [ mkColumn BS.col3 $
           mkSettingsInputs state N.fromString settings
-          -- <> mkSettingsInputs state I.fromString intSettings
+          -- <> mkSettingsInputs state.numLine I.fromString intSettings
         , mkColumn BS.col1 []
         , mkColumn BS.col4 <<< pure $
           HH.table
@@ -157,8 +156,8 @@ render state =
       annotations :: Array (HH.HTML _ _)
       annotations = zipWith
         mkAnnotationInput
-        (0..(length state.annotations))
-        state.annotations
+        (0..(length state.numLine.annotations))
+        state.numLine.annotations
       addButton =
         HH.tr_
         [ HH.td_ []
@@ -166,11 +165,37 @@ render state =
         , HH.td_
           [ HH.button
             [ HE.onClick \_ -> Add
-            , HP.classes [ HH.ClassName "fa fa-plus", BS.btn, BS.btnPrimary ]
+            , HP.classes [ HH.ClassName "fa fa-plus", BS.btn, BS.btnSecondary ]
             ]
             []
           ]
         ]
+      downloadButton =
+        case state.dataURL of
+          Nothing ->
+            HH.div
+              [ HP.classes
+                [ HH.ClassName "fa fa-download"
+                , BS.btn
+                , BS.btnPrimary
+                , BS.disabled
+                ]
+              ]
+              [ HH.text " Download nicht möglich"
+              ]
+          Just url ->
+            HH.a
+              [ HP.href url
+              , HP.download "zahlenstrahl.png"
+              , HP.classes
+                [ HH.ClassName "fa fa-download"
+                , BS.btn
+                , BS.btnPrimary
+                , BS.mb5
+                ]
+              ]
+              [ HH.text " Download"
+              ]
 
 canvasID :: String
 canvasID = "canvas"
@@ -185,8 +210,8 @@ handleAction'
   => Action -> H.HalogenM State Action () output m Unit
 handleAction' action = do
   handleAction action
-  state <- H.get
-  H.liftEffect $ void $ do
+  { numLine, dataURL } <- H.get
+  urlPNG <- H.liftEffect $ do
     ctx <- getCtx
 
     CA.runAction ctx $ do
@@ -195,11 +220,16 @@ handleAction' action = do
         (I.toNumber defCanvas.width >< I.toNumber defCanvas.height)
         dpr
       CA.clearRectFull
-      drawNumberLine state
+      drawNumberLine numLine
 
-    -- TODO Add download support. This probably requires a component output and
-    -- another component has to listen to that and display a download button.
-    -- url <- C.canvasToDataURL canvas
+      CA.toDataUrl
+
+  let url = S.replace
+            (S.Pattern "image/png")
+            (S.Replacement "image/octet-stream")
+            urlPNG
+  H.modify_ \state ->
+    state { dataURL = Just url }
 
 pushDPR
   :: forall m a. MonadAff m
@@ -220,33 +250,37 @@ handleAction = case _ of
     void $ pushDPR listener
   Add ->
     H.modify_ \state ->
-      state { annotations = snoc state.annotations defAnnotation }
+      state
+      { numLine
+        { annotations = snoc state.numLine.annotations defAnnotation
+        }
+      }
   Edit i a ->
     H.modify_ \state ->
-      case updateAt i a state.annotations of
-        Just annotations -> state { annotations = annotations }
+      case updateAt i a state.numLine.annotations of
+        Just annotations -> state { numLine { annotations = annotations } }
         Nothing -> state
   Remove i ->
     H.modify_ \state ->
-      case deleteAt i state.annotations of
-        Just annotations -> state { annotations = annotations }
+      case deleteAt i state.numLine.annotations of
+        Just annotations -> state { numLine { annotations = annotations } }
         Nothing -> state
   ChangeStart s ->
-    H.modify_ \state -> state { start = s }
+    H.modify_ \state -> state { numLine { start = s } }
   ChangeEnd s ->
     -- TODO Add safety check (e.g. if end - start / step is too large, then it hangs)
-    H.modify_ \state -> state { end = s }
+    H.modify_ \state -> state { numLine { end = s } }
   ChangeStep s ->
-    H.modify_ \state -> state { step = s }
+    H.modify_ \state -> state { numLine { step = s } }
   ChangeMediumStep s ->
-    H.modify_ \state -> state { mediumStep = s }
+    H.modify_ \state -> state { numLine { mediumStep = s } }
   ChangeMiniStep s ->
-    H.modify_ \state -> state { miniStep = s }
+    H.modify_ \state -> state { numLine { miniStep = s } }
   -- TODO Make steps toggleable
   ChangeWidth w ->
-    H.modify_ \state -> state { canvas { width = w } }
+    H.modify_ \state -> state { numLine { canvas { width = w } } }
   ChangeHeight h ->
-    H.modify_ \state -> state { canvas { height = h } }
+    H.modify_ \state -> state { numLine { canvas { height = h } } }
 
 mkCanvas :: forall w i. Canvas -> HH.HTML w i
 mkCanvas cv =
@@ -285,7 +319,7 @@ mkAnnotationInput i a =
       -- TODO This is <button> but I should use <input type="button">.
       HH.button
         [ HE.onClick \_ -> Remove i
-        , HP.classes [ HH.ClassName "fa fa-minus", BS.btn, BS.btnPrimary ]
+        , HP.classes [ HH.ClassName "fa fa-minus", BS.btn, BS.btnSecondary ]
         ]
         []
     ]

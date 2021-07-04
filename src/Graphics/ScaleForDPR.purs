@@ -1,4 +1,6 @@
 -- https://raw.githubusercontent.com/artemisSystem/purescript-canvas-action/main/test/Test/ScaleForDPR.purs
+--
+-- Also, check out https://medium.com/wdstack/fixing-html5-2d-canvas-blur-8ebe27db07da
 module Graphics.ScaleForDPR
   ( getDPRChange
   , scaleForDPROnce
