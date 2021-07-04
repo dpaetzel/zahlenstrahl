@@ -191,7 +191,9 @@ handleAction' action = do
 
     CA.runAction ctx $ do
       dpr <- devicePixelRatio
-      DPR.scaleForDPROnce (I.toNumber defCanvas.width >< I.toNumber defCanvas.height) dpr
+      DPR.scaleForDPROnce
+        (I.toNumber defCanvas.width >< I.toNumber defCanvas.height)
+        dpr
       CA.clearRectFull
       drawNumberLine state
 
