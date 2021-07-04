@@ -162,11 +162,10 @@ drawNumberLine numLine = do
   xOffset <- (_ / 2.0) <$> (labelWidth $ toLabel numLine.start)
 
   let arr = arrow numLine.canvas tickLength xOffset
-  -- TODO Make adaptable
+
   CA.setLineWidth 2.0
   flip bind CA.stroke $ CA.runPath $ drawArrow arr
 
-  -- TODO Make adaptable
   CA.setLineWidth 1.0
 
   let t = transformation numLine arr
@@ -249,9 +248,6 @@ drawAnnotationMarker
   -> Number
   -> CA.PathAction Unit
 drawAnnotationMarker y markerLen ann x = do
-  -- TODO Make adaptable
-  -- TODO Reintroduce
-  -- newLineWidth 1.0
   CA.moveTo $ Vector2 x y
   CA.lineTo $ Vector2 x (y - markerLen)
 
