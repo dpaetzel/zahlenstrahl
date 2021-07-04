@@ -24,6 +24,7 @@
   , "strings"
   , "tailrec"
   , "web-cssom"
+  , "web-dom"
   , "web-events"
   , "web-html"
   ]
