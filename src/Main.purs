@@ -23,6 +23,7 @@ import Halogen.HTML.Events as HE
 import Halogen.VDom.Driver (runUI)
 import Halogen.Themes.Bootstrap4 as BS
 import Halogen.Subscription as HS
+import Web.DOM.ParentNode (QuerySelector(..))
 
 import Graphics.Zahlengerade
   ( Annotation
@@ -36,8 +37,14 @@ import Graphics.Zahlengerade
 
 main :: Effect Unit
 main = HA.runHalogenAff do
-  body <- HA.awaitBody
-  runUI component unit body
+  HA.awaitLoad
+  anchorM <- HA.selectElement (QuerySelector "#app")
+  case anchorM of
+    Nothing -> do
+      body <- HA.awaitBody
+      runUI component unit body
+    Just anchor ->
+      runUI component unit anchor
 
 type Input = Unit
 
