@@ -107,12 +107,22 @@ component =
 doc :: forall w i. HH.HTML w i
 doc =
   HH.div_
-  [ HH.h4_ [ HH.text "Tipp" ]
-  , HH.text $
-    "Zwischenschritte können unsichtbar gemacht werden, indem "
-    <> " ihr Wert auf eine Zahl größer als "
-  , HH.em_ [ HH.text "Ende" ]
-  , HH.text " gesetzt wird."
+  [ HH.h4_ [ HH.text "Tipps" ]
+  , HH.ul_
+    [ HH.li_
+      [ HH.text $
+        "Zwischenschritte können unsichtbar gemacht werden, indem "
+        <> " ihr Wert auf eine Zahl größer als "
+      , HH.em_ [ HH.text "Ende" ]
+      , HH.text " gesetzt wird."
+      ]
+    , HH.li_
+      [ HH.text $
+        "Für Zwischenschritte mit periodischen Nachkommastellen einfach genug "
+        <> "Nachkommastellen angeben (z.B. 0.333333 für Drittel oder "
+        <> "0.142857 für Siebtel)."
+      ]
+    ]
   ]
   where
     mkLi txt = HH.li_ [ HH.text txt ]
