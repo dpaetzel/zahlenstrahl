@@ -3,7 +3,7 @@ module Main where
 import Prelude
 
 import Control.Monad.Rec.Class (forever)
-import Data.Array (deleteAt, length, snoc, updateAt, zipWith, (..))
+import Data.Array (cons, deleteAt, length, snoc, updateAt, zipWith, (..))
 import Data.Int as I
 import Data.Number as N
 import Data.Maybe (Maybe(..), fromMaybe)
@@ -140,7 +140,7 @@ render state =
           [ downloadButton
           ]
         ]
-      , mkRow
+      , mkRow' [ BS.mb5 ]
         [ mkColumn BS.col3 $
           mkSettingsInputs state N.fromString settings
           -- <> mkSettingsInputs state.numLine I.fromString intSettings
@@ -374,6 +374,9 @@ mkSettingsInput state read setting =
 
 mkRow :: forall w i. Array (HH.HTML w i) -> HH.HTML w i
 mkRow = HH.div [ HP.classes [ BS.row ] ]
+
+mkRow' :: forall w i. Array HH.ClassName -> Array (HH.HTML w i) -> HH.HTML w i
+mkRow' cls = HH.div [ HP.classes $ BS.row `cons` cls ]
 
 mkColumn :: forall w i. HH.ClassName -> Array (HH.HTML w i) -> HH.HTML w i
 mkColumn cls = HH.div [ HP.classes [ cls ] ]
