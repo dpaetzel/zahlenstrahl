@@ -468,7 +468,7 @@ mkSettingsInput state read setting =
     oldVal = setting.accessor $ state
 
 mkErrorMsg
-  :: forall m a.
+  :: forall m.
      Maybe String
   -> HH.ComponentHTML Action () m
 mkErrorMsg error =
@@ -489,6 +489,3 @@ mkRow' cls = HH.div [ HP.classes $ BS.row `cons` cls ]
 
 mkColumn :: forall w i. HH.ClassName -> Array (HH.HTML w i) -> HH.HTML w i
 mkColumn cls = HH.div [ HP.classes [ cls ] ]
-
-mkColumn' :: forall w i. Array (HH.HTML w i) -> HH.HTML w i
-mkColumn' = HH.div [ HP.classes [ BS.col ] ]
