@@ -3,7 +3,16 @@ module Main where
 import Prelude
 
 import Control.Monad.Rec.Class (forever)
-import Data.Array (cons, deleteAt, length, snoc, updateAt, zipWith, (..))
+import Data.Array
+  ( cons
+  , deleteAt
+  , length
+  , modifyAt
+  , snoc
+  , updateAt
+  , zipWith
+  , (..)
+  )
 import Data.Int as I
 import Data.Number as N
 import Data.Maybe (Maybe(..), fromMaybe)
@@ -30,6 +39,7 @@ import Graphics.Zahlengerade
   ( Annotation
   , Canvas
   , NumberLine
+  , Step
   , defAnnotation
   , defCanvas
   , defNumberLine
@@ -62,9 +72,7 @@ data Action
   | Remove Int
   | ChangeStart Number
   | ChangeEnd Number
-  | ChangeStep Number
-  | ChangeMediumStep Number
-  | ChangeMiniStep Number
+  | ChangeStepWidth Int Number
   | ChangeWidth Int
   | ChangeHeight Int
 
@@ -78,9 +86,6 @@ settings :: Array (Setting Number)
 settings =
   [ { label : "Beginn"        , accessor : _.numLine.start         , action : ChangeStart }
   , { label : "Ende"          , accessor : _.numLine.end           , action : ChangeEnd }
-  , { label : "Schritt"       , accessor : _.numLine.step          , action : ChangeStep }
-  , { label : "Mittelschritt" , accessor : _.numLine.mediumStep    , action : ChangeMediumStep }
-  , { label : "Minischritt"   , accessor : _.numLine.miniStep      , action : ChangeMiniStep }
   ]
 
 intSettings :: Array (Setting Int)
@@ -143,13 +148,12 @@ render state =
       , mkRow' [ BS.mb5 ]
         [ mkColumn BS.col3 $
           mkSettingsInputs state N.fromString settings
-          -- <> mkSettingsInputs state.numLine I.fromString intSettings
         , mkColumn BS.col1 []
         , mkColumn BS.col4 <<< pure $
           HH.table
           [ HP.classes [ BS.table, BS.tableStriped ] ]
           [ annotationsHeader
-          , HH.tbody_ annotations
+          , HH.tbody_ $ mkAnnotationInputs state
           , addButton
           ]
         , mkColumn BS.col4 [doc]
@@ -162,11 +166,6 @@ render state =
                                  , HH.th_ [ HH.text "Beschriftung" ]
                                  , HH.th_ []
                                  ]
-      annotations :: Array (HH.HTML _ _)
-      annotations = zipWith
-        mkAnnotationInput
-        (0..(length state.numLine.annotations))
-        state.numLine.annotations
       addButton =
         HH.tr_
         [ HH.td_ []
@@ -279,12 +278,11 @@ handleAction = case _ of
   ChangeEnd s ->
     -- TODO Add safety check (e.g. if end - start / step is too large, then it hangs)
     H.modify_ \state -> state { numLine { end = s } }
-  ChangeStep s ->
-    H.modify_ \state -> state { numLine { step = s } }
-  ChangeMediumStep s ->
-    H.modify_ \state -> state { numLine { mediumStep = s } }
-  ChangeMiniStep s ->
-    H.modify_ \state -> state { numLine { miniStep = s } }
+  ChangeStepWidth i s -> do
+    H.modify_ \state ->
+      case modifyAt i (_ { width = s }) state.numLine.steps of
+        Just steps -> state { numLine { steps = steps } }
+        Nothing -> state
   -- TODO Make steps toggleable
   ChangeWidth w ->
     H.modify_ \state -> state { numLine { canvas { width = w } } }
@@ -300,6 +298,12 @@ mkCanvas cv =
     , HP.style $ "width: " <> show cv.width <> "px"
     , HP.classes [ BS.mxAuto ]
     ]
+
+mkAnnotationInputs :: forall m. State -> Array (HH.ComponentHTML Action () m)
+mkAnnotationInputs state = zipWith
+  mkAnnotationInput
+  (0..(length state.numLine.annotations))
+  state.numLine.annotations
 
 {-
 i is index, a is annotation.
@@ -340,7 +344,39 @@ mkSettingsInputs
      (String -> Maybe a) ->
      Array (Setting a) ->
      Array (HH.ComponentHTML Action () m)
-mkSettingsInputs st read setts = map (mkSettingsInput st read) setts
+mkSettingsInputs st read setts =
+  map (mkSettingsInput st read) setts <> mkStepInputs st
+
+mkStepInputs :: forall m. State -> Array (HH.ComponentHTML Action () m)
+mkStepInputs state = zipWith
+  mkStepInput
+  (0..(length state.numLine.steps))
+  state.numLine.steps
+
+mkStepInput
+  :: forall m.
+     Int -> Step -> HH.ComponentHTML Action () m
+mkStepInput i { name , width , tickLength , labelled } =
+  -- TODO Refactor, the following is structurally the same as mkSettingsInput
+  HH.div
+  [ HP.classes [ BS.inputGroup, BS.m2 ] ]
+  [
+    HH.div
+    [ HP.classes
+      -- The w50 (in combination with the w100) make the labels all the same
+      -- width.
+      [ BS.inputGroupPrepend, BS.w50 ]
+    ]
+    [ HH.span [ HP.classes [ BS.inputGroupText, BS.w100 ] ]
+      [ HH.text name ]
+    ]
+  , HH.input
+    [ HP.classes [ BS.formControl ]
+    , HP.value (show width)
+    , HE.onValueChange \s ->
+       ChangeStepWidth i (fromMaybe width $ N.fromString s)
+    ]
+  ]
 
 mkSettingsInput
   :: forall m a.

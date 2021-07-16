@@ -7,7 +7,9 @@ where
 import Prelude
 
 import Data.Array (zipWith, (..), (\\))
+import Data.Foldable (foldM, maximum)
 import Data.Int as I
+import Data.Maybe (fromMaybe)
 import Data.Traversable (sequence_)
 import Data.String as S
 import Graphics.CanvasAction
@@ -39,20 +41,15 @@ fontHeight :: Int
 fontHeight = 20
 
 -- TODO Make adaptable
-tickLength :: Number
-tickLength = 16.0
-
--- TODO Make adaptable
-mediumTickLength :: Number
-mediumTickLength = 10.0
-
--- TODO Make adaptable
-miniTickLength :: Number
-miniTickLength = 6.0
-
--- TODO Make adaptable
 markerLength :: Number
 markerLength = 50.0
+
+type Step =
+  { name :: String
+  , width :: Number
+  , tickLength :: Number
+  , labelled :: Boolean
+  }
 
 type Annotation = { place :: Number, label :: String }
 
@@ -63,9 +60,7 @@ defAnnotation = { place : 0.0, label : "0" }
 type NumberLine =
     { start       :: Number
     , end         :: Number
-    , step        :: Number
-    , mediumStep  :: Number
-    , miniStep    :: Number
+    , steps       :: Array Step
     , annotations :: Array Annotation
     , canvas :: Canvas
     }
@@ -79,9 +74,11 @@ defNumberLine :: NumberLine
 defNumberLine =
   { start : 0.0
   , end : 10.0
-  , step : 1.0
-  , mediumStep : 0.5
-  , miniStep : 0.1
+  , steps :
+    [ { name : "Schritt", width : 1.0, tickLength : 16.0, labelled : true }
+    , { name : "Mittelschritt", width : 0.5, tickLength : 10.0, labelled : false }
+    , { name : "Minischritt", width : 0.1, tickLength : 6.0, labelled : false }
+    ]
   , annotations :
     [ { place : 3.14, label : "π"}
     , { place : 2.71, label : "e"}
@@ -134,10 +131,18 @@ steps
   -> Array Number
 steps { start, end } d =
   let
-    n = I.floor $ (end - start) / d
+    n = nSteps { start, end } d
     step k = I.toNumber k * d + start
   in
     map step $ 0..n
+
+-- | Given a start and end and a step size, provides the number of steps.
+nSteps
+  :: forall r
+  . { start :: Number, end :: Number | r }
+  -> Number
+  -> Int
+nSteps { start, end } d = I.floor $ (end - start) / d
 
 -- | Divides the transformation's entire domain into equidistant steps of the
 -- | provided length and then transforms those steps to the transformation's
@@ -161,44 +166,45 @@ drawNumberLine numLine = do
   -- Make sure that the first label is not cut off.
   xOffset <- (_ / 2.0) <$> (labelWidth $ toLabel numLine.start)
 
-  let arr = arrow numLine.canvas tickLength xOffset
+  let maxTickLength = fromMaybe 16.0 $ maximum $ map _.tickLength numLine.steps
+  let arr = arrow numLine.canvas maxTickLength xOffset
 
   CA.setLineWidth 2.0
   flip bind CA.stroke $ CA.runPath $ drawArrow arr
-
   CA.setLineWidth 1.0
 
   let t = transformation numLine arr
 
-  let xs = xCoordsSteps t numLine.step
-  let labelSteps = steps t.from numLine.step
-  let labels = map toLabel labelSteps
-  let xsMed = (_ \\ xs) $ xCoordsSteps t numLine.mediumStep
-  let xsMini = (_ \\ (xs <> xsMed)) $ xCoordsSteps t numLine.miniStep
-  let xsAnn = map (roundToDot5 <<< transform t <<< _.place) numLine.annotations
-  let anns = map _.label numLine.annotations
+  _ <- foldM (drawTicks y t) [] numLine.steps
 
-  flip bind CA.stroke $ CA.runPath $ do
-    drawTicks y tickLength xs
-    drawTicks y mediumTickLength xsMed
-    drawTicks y miniTickLength xsMini
-    sequence_ $ zipWith (drawAnnotationMarker y markerLength) anns xsAnn
-
-  drawTickLabels y tickLength labels xs
-  sequence_ $ zipWith (drawLabel y (- markerLength)) anns xsAnn
+  drawAnnotations y t markerLength numLine.annotations
 
 -- | Given a number line's y-coordinate and a set of x-coordinates, draws a tick
 -- | of the given length for each of the x-coordinates to the provided context's
--- | canvas at that position.
+-- | canvas at that position. If the ticks are to be labelled, label them.
 -- |
--- | Only adds to the current path, does neither call
--- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
+-- | Since 'drawTickLabels' is a 'MonadCanvasAction' (and not a 'PathAction'),
+-- | this is, too.
 drawTicks
-  :: Number
-  -> Number
+  :: forall m. CA.MonadCanvasAction m
+  => Number
+  -> Transformation
   -> Array Number
-  -> CA.PathAction Unit
-drawTicks y len xs = sequence_ $ map (drawTick y len) xs
+  -> Step
+  -> m (Array Number)
+drawTicks y t dontDraw step = do
+  let xs = xCoordsSteps t step.width \\ dontDraw
+
+  flip bind CA.stroke $ CA.runPath $ do
+    sequence_ $ map (drawTick y step.tickLength) xs
+
+  when step.labelled $ do
+    let labelSteps = steps t.from step.width
+    let labels = map toLabel labelSteps
+    drawTickLabels y step.tickLength labels xs
+
+  pure $ xs <> dontDraw
+
 
 -- | Given a number line's y-coordinate as well as an x-coordinate and a length,
 -- | constructs a path action that draws a tick to the provided context's canvas
@@ -229,14 +235,19 @@ drawTickLabels y tickLen labels xs =
 -- | annotations, draws the labels to the provided context's canvas at that
 -- | position. Annotations are drawn above the number line with markers which
 -- | are basically (usually longer) ticks that do not cross the line.
--- drawAnnotations
---   :: forall m. CA.MonadCanvasAction m
---   => Number
---   -> Number
---   -> Array String
---   -> Array Number
---   -> m Unit
--- drawAnnotations y markerLen anns xs = do
+drawAnnotations
+  :: forall m. CA.MonadCanvasAction m
+  => Number
+  -> Transformation
+  -> Number
+  -> Array Annotation
+  -> m Unit
+drawAnnotations y t markerLen anns = do
+  let xs = map (roundToDot5 <<< transform t <<< _.place) anns
+  let labels = map _.label anns
+  sequence_ $ zipWith (drawLabel y (- markerLength)) labels xs
+  flip bind CA.stroke $ CA.runPath $ do
+    sequence_ $ zipWith (drawAnnotationMarker y markerLength) labels xs
 
 -- | Constructs a path action that draws a single annotation marker.
 -- | Annotation markers are basically (usually longer) ticks that do not cross
@@ -255,8 +266,8 @@ drawAnnotationMarker y markerLen ann x = do
 -- | x-coordinate, draws a labels with the corresponding text to the provided
 -- | context's canvas at that position.
 -- |
--- | Only adds to the current path, does neither call
--- | 'Graphics.Canvas.beginPath' nor 'Graphics.Canvas.stroke'.
+-- | Since 'fillText' is a 'MonadCanvasAction' (and not a 'PathAction'), this
+-- | is, too.
 drawLabel
   :: forall m. CA.MonadCanvasAction m
   => Number
