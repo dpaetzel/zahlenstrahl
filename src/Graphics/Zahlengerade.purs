@@ -165,6 +165,7 @@ drawNumberLine numLine = do
 
   -- Make sure that the first label is not cut off.
   xOffset <- (_ / 2.0) <$> (labelWidth $ toLabel numLine.start)
+  -- TODO Make sure that the last label is not cut off (e.g. 0 to 10000)
 
   let maxTickLength = fromMaybe 16.0 $ maximum $ map _.tickLength numLine.steps
   let arr = arrow numLine.canvas maxTickLength xOffset

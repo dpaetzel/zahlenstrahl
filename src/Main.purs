@@ -62,7 +62,6 @@ type Input = Unit
 type State =
   { numLine :: NumberLine
   , dataURL :: Maybe String
-  , error :: Maybe String
   }
 
 data Action
@@ -109,7 +108,7 @@ component =
     }
   where
     initialState =
-      const { numLine : defNumberLine, dataURL : Nothing, error : Nothing }
+      const { numLine : defNumberLine, dataURL : Nothing }
 
 doc :: forall w i. HH.HTML w i
 doc =
@@ -292,7 +291,7 @@ handleAction = case _ of
     H.modify_ \state -> state { numLine { canvas { height = h } } }
 
 -- | Set start and end while adjusting all step sizes so the scale stays the
--- | same but for its labels.
+-- | same (but for its labels).
 setStartEnd
   :: forall r.
      State
@@ -417,6 +416,7 @@ mkStepInput
      Int -> Step -> HH.ComponentHTML Action () m
 mkStepInput i { name , width , tickLength , labelled } =
   -- TODO Refactor, the following is structurally the same as mkSettingsInput
+  -- The boilerplate (inputGroup, div nesting, span, etc.) is due to Bootstrap.
   HH.div
   [ HP.classes [ BS.inputGroup, BS.m2 ] ]
   [
@@ -466,6 +466,20 @@ mkSettingsInput state read setting =
   ]
   where
     oldVal = setting.accessor $ state
+
+mkErrorMsg
+  :: forall m a.
+     Maybe String
+  -> HH.ComponentHTML Action () m
+mkErrorMsg error =
+  case error of
+    Nothing -> HH.div [] []
+    Just err ->
+      HH.div
+      [ HP.classes
+        [ BS.m2, BS.w100, BS.alert, BS.alertDanger ]
+      ]
+      [ HH.text err ]
 
 mkRow :: forall w i. Array (HH.HTML w i) -> HH.HTML w i
 mkRow = HH.div [ HP.classes [ BS.row ] ]
