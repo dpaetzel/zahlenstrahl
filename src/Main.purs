@@ -62,6 +62,7 @@ type Input = Unit
 type State =
   { numLine :: NumberLine
   , dataURL :: Maybe String
+  , error :: Maybe String
   }
 
 data Action
@@ -107,7 +108,8 @@ component =
       }
     }
   where
-    initialState = const { numLine : defNumberLine, dataURL : Nothing }
+    initialState =
+      const { numLine : defNumberLine, dataURL : Nothing, error : Nothing }
 
 doc :: forall w i. HH.HTML w i
 doc =
@@ -273,21 +275,78 @@ handleAction = case _ of
       case deleteAt i state.numLine.annotations of
         Just annotations -> state { numLine { annotations = annotations } }
         Nothing -> state
-  ChangeStart s ->
-    H.modify_ \state -> state { numLine { start = s } }
-  ChangeEnd s ->
-    -- TODO Add safety check (e.g. if end - start / step is too large, then it hangs)
-    H.modify_ \state -> state { numLine { end = s } }
+  ChangeStart start ->
+    H.modify_ \st -> setStartEnd st ({ start : start, end : st.numLine.end })
+  ChangeEnd end -> do
+    H.modify_ \st -> setStartEnd st ({ start : st.numLine.start, end : end })
   ChangeStepWidth i s -> do
     H.modify_ \state ->
       case modifyAt i (_ { width = s }) state.numLine.steps of
         Just steps -> state { numLine { steps = steps } }
         Nothing -> state
+    H.modify_ fixSteps
   -- TODO Make steps toggleable
   ChangeWidth w ->
     H.modify_ \state -> state { numLine { canvas { width = w } } }
   ChangeHeight h ->
     H.modify_ \state -> state { numLine { canvas { height = h } } }
+
+-- | Set start and end while adjusting all step sizes so the scale stays the
+-- | same but for its labels.
+setStartEnd
+  :: forall r.
+     State
+  -> { start :: Number, end :: Number | r }
+  -> State
+setStartEnd stOld startend@{ start, end } =
+  stOld
+  { numLine
+    { start = start
+    , end = end
+    , steps =
+      map
+        (scaleStep stOld.numLine startend)
+        stOld.numLine.steps
+    }
+  }
+
+-- | widthOld / (endOld - startOld) = widthNew / (endNew - startNew)
+-- | widthNew = widthOld / (endOld - startOld) (endNew - startNew )
+scaleStep
+  :: forall r p.
+     { start :: Number, end :: Number | r }
+  -> { start :: Number, end :: Number | p }
+  -> Step
+  -> Step
+scaleStep iOld iNew s =
+  s { width = s.width / (iOld.end - iOld.start) * (iNew.end - iNew.start) }
+
+fixSteps :: State -> State
+fixSteps st =
+  st { numLine { steps = map (fixStep st.numLine) st.numLine.steps } }
+
+fixStep
+  :: forall r p.
+     { start :: Number
+     , end :: Number
+     , canvas :: { width :: Int | p } | r }
+  -> Step
+  -> Step
+fixStep nl s =
+  s { width = max s.width (minimumStep nl) }
+  where
+    minStep = minimumStep nl
+
+-- | (end - start) / step <= width
+-- | (end - start) <= width * step
+-- | step >= (end - start) / width
+minimumStep
+  :: forall r p.
+     { start :: Number
+     , end :: Number
+     , canvas :: { width :: Int | p } | r }
+  -> Number
+minimumStep { start, end, canvas } = (end - start) / I.toNumber canvas.width
 
 mkCanvas :: forall w i. Canvas -> HH.HTML w i
 mkCanvas cv =

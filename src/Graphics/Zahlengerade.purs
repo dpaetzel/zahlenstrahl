@@ -62,7 +62,7 @@ type NumberLine =
     , end         :: Number
     , steps       :: Array Step
     , annotations :: Array Annotation
-    , canvas :: Canvas
+    , canvas      :: Canvas
     }
 
 -- | Default canvas dimensions.
