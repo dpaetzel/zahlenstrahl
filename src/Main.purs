@@ -84,14 +84,14 @@ type Setting a =
 
 settings :: Array (Setting Number)
 settings =
-  [ { label : "Beginn"        , accessor : _.numLine.start         , action : ChangeStart }
-  , { label : "Ende"          , accessor : _.numLine.end           , action : ChangeEnd }
+  [ { label : "Beginn", accessor : _.numLine.start, action : ChangeStart }
+  , { label : "Ende"  , accessor : _.numLine.end  , action : ChangeEnd }
   ]
 
 intSettings :: Array (Setting Int)
 intSettings =
-  [ { label : "Breite (px)"   , accessor : _.numLine.canvas.width  , action : ChangeWidth }
-  , { label : "Höhe (px)"     , accessor : _.numLine.canvas.height , action : ChangeHeight }
+  [ { label : "Breite (px)", accessor : _.numLine.canvas.width , action : ChangeWidth }
+  , { label : "Höhe (px)"  , accessor : _.numLine.canvas.height, action : ChangeHeight }
   ]
 
 component
