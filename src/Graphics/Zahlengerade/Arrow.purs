@@ -20,16 +20,16 @@ type Arrow =
   , headLength :: Number
   }
 
-arrow :: Canvas -> Number -> Number -> Arrow
-arrow cv headLength xOffset =
+arrow :: Canvas -> Number -> Number -> Number -> Arrow
+arrow cv headLength xOffsetL xOffsetR =
   let y = I.toNumber cv.height / 2.0
   in
     { from :
-      { x : xOffset
+      { x : xOffsetL
       , y : y
       }
     , to :
-      { x : I.toNumber cv.width - xOffset
+      { x : I.toNumber cv.width - xOffsetR
       , y : y
       }
     , headLength : headLength

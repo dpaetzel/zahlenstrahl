@@ -163,12 +163,12 @@ drawNumberLine numLine = do
 
   let y = roundToDot5 $ I.toNumber numLine.canvas.height / 2.0
 
-  -- Make sure that the first label is not cut off.
-  xOffset <- (_ / 2.0) <$> (labelWidth $ toLabel numLine.start)
-  -- TODO Make sure that the last label is not cut off (e.g. 0 to 10000)
+  -- Make sure that neither the first or last label is cut off.
+  xOffsetL <- (_ / 2.0) <$> (labelWidth $ toLabel numLine.start)
+  xOffsetR <- (_ / 2.0) <$> (labelWidth $ toLabel numLine.end)
 
   let maxTickLength = fromMaybe 16.0 $ maximum $ map _.tickLength numLine.steps
-  let arr = arrow numLine.canvas maxTickLength xOffset
+  let arr = arrow numLine.canvas maxTickLength xOffsetL xOffsetR
 
   CA.setLineWidth 2.0
   flip bind CA.stroke $ CA.runPath $ drawArrow arr
