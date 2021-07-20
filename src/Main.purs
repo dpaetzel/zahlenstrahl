@@ -4,7 +4,8 @@ import Prelude
 
 import Control.Monad.Rec.Class (forever)
 import Data.Array
-  ( cons
+  ( any
+  , cons
   , deleteAt
   , length
   , modifyAt
@@ -33,6 +34,7 @@ import Halogen.HTML.Events as HE
 import Halogen.VDom.Driver (runUI)
 import Halogen.Themes.Bootstrap4 as BS
 import Halogen.Subscription as HS
+import Math (abs)
 import Web.DOM.ParentNode (QuerySelector(..))
 
 import Graphics.Zahlengerade
@@ -279,73 +281,16 @@ handleAction = case _ of
   ChangeEnd end -> do
     H.modify_ \st -> setStartEnd st ({ start : st.numLine.start, end : end })
   ChangeStepWidth i s -> do
-    H.modify_ \state ->
-      case modifyAt i (_ { width = s }) state.numLine.steps of
-        Just steps -> state { numLine { steps = steps } }
-        Nothing -> state
-    H.modify_ fixSteps
+    H.modify_ \stOld ->
+      case modifyAt i (_ { width = s }) stOld.numLine.steps of
+        Just steps -> stOld { numLine { steps = steps } }
+        Nothing -> stOld
+    H.modify_ fixSteps'
   -- TODO Make steps toggleable
   ChangeWidth w ->
     H.modify_ \state -> state { numLine { canvas { width = w } } }
   ChangeHeight h ->
     H.modify_ \state -> state { numLine { canvas { height = h } } }
-
--- | Set start and end while adjusting all step sizes so the scale stays the
--- | same (but for its labels).
-setStartEnd
-  :: forall r.
-     State
-  -> { start :: Number, end :: Number | r }
-  -> State
-setStartEnd stOld startend@{ start, end } =
-  stOld
-  { numLine
-    { start = start
-    , end = end
-    , steps =
-      map
-        (scaleStep stOld.numLine startend)
-        stOld.numLine.steps
-    }
-  }
-
--- | widthOld / (endOld - startOld) = widthNew / (endNew - startNew)
--- | widthNew = widthOld / (endOld - startOld) (endNew - startNew )
-scaleStep
-  :: forall r p.
-     { start :: Number, end :: Number | r }
-  -> { start :: Number, end :: Number | p }
-  -> Step
-  -> Step
-scaleStep iOld iNew s =
-  s { width = s.width / (iOld.end - iOld.start) * (iNew.end - iNew.start) }
-
-fixSteps :: State -> State
-fixSteps st =
-  st { numLine { steps = map (fixStep st.numLine) st.numLine.steps } }
-
-fixStep
-  :: forall r p.
-     { start :: Number
-     , end :: Number
-     , canvas :: { width :: Int | p } | r }
-  -> Step
-  -> Step
-fixStep nl s =
-  s { width = max s.width (minimumStep nl) }
-  where
-    minStep = minimumStep nl
-
--- | (end - start) / step <= width
--- | (end - start) <= width * step
--- | step >= (end - start) / width
-minimumStep
-  :: forall r p.
-     { start :: Number
-     , end :: Number
-     , canvas :: { width :: Int | p } | r }
-  -> Number
-minimumStep { start, end, canvas } = (end - start) / I.toNumber canvas.width
 
 mkCanvas :: forall w i. Canvas -> HH.HTML w i
 mkCanvas cv =
@@ -489,3 +434,115 @@ mkRow' cls = HH.div [ HP.classes $ BS.row `cons` cls ]
 
 mkColumn :: forall w i. HH.ClassName -> Array (HH.HTML w i) -> HH.HTML w i
 mkColumn cls = HH.div [ HP.classes [ cls ] ]
+
+-- | Sets start and end safely. This entails handling cases where
+-- |
+-- |  - they are set to the same value (adjust one of the bounds to a different
+-- |    value)
+-- |
+-- |  - they are set to values many magnitudes larger than the current step size
+-- |    which would result in redrawing very many steps on the same pixels
+-- |    (adjust step sizes to somewhat reasonable values).
+setStartEnd
+  :: forall r.
+     State
+  -> { start :: Number, end :: Number | r }
+  -> State
+setStartEnd stOld startend@{ start, end }
+  | start == end && stOld.numLine.start == start =
+    fixSteps stOld $
+    stOld
+    { numLine
+      { start = end - 1.0
+      , end = end
+      }
+    }
+  | start == end && stOld.numLine.end == end =
+    fixSteps stOld $
+    stOld
+    { numLine
+      { start = start
+      , end = start + 1.0
+      }
+    }
+  | start == end =
+    fixSteps stOld $
+    stOld
+    { numLine
+      { start = start
+      , end = start + 1.0
+      }
+    }
+  | otherwise =
+    fixSteps stOld $
+    stOld
+    { numLine
+      { start = start
+      , end = end
+      -- , steps =
+      --   map
+      --     (scaleStep stOld.numLine startend)
+      --     stOld.numLine.steps
+      }
+    }
+
+-- | Scales the given step size such that it visually stays the same if changing
+-- | the interval (i.e. relative to the old interval).
+-- widthOld / (endOld - startOld) = widthNew / (endNew - startNew)
+-- widthNew = widthOld / (endOld - startOld) (endNew - startNew )
+scaleStep
+  :: forall r p.
+     { start :: Number, end :: Number | r }
+  -> { start :: Number, end :: Number | p }
+  -> Step
+  -> Step
+scaleStep iOld iNew s =
+  s { width = abs $ if iOld.end - iOld.start /= 0.0
+              then s.width / abs (iOld.end - iOld.start) * (iNew.end - iNew.start)
+              else s.width * (iNew.end - iNew.start)
+    }
+
+fixSteps :: State -> State -> State
+fixSteps stOld stNew
+  | anyStepLTMin stNew =
+    stNew
+    { numLine
+      { steps = map (scaleStep stOld.numLine stNew.numLine) stOld.numLine.steps
+      }
+    }
+  | otherwise = stNew
+
+anyStepLTMin
+  :: State
+  -> Boolean
+anyStepLTMin st =
+  any ((_ < minStep) <<< _.width) st.numLine.steps
+  where
+    minStep = minimumStep st.numLine
+
+-- | Our minimum step size is one step per pixel.
+-- (end - start) / step <= width
+-- (end - start) <= width * step
+-- step >= (end - start) / width
+minimumStep
+  :: forall r p.
+     { start :: Number
+     , end :: Number
+     , canvas :: { width :: Int | p } | r }
+  -> Number
+minimumStep { start, end, canvas } = (end - start) / I.toNumber canvas.width
+
+-- | Output just isn't nice at all. We only use this if the user intentionally
+-- | sets very low step sizes (i.e. if they *want* to see something ugly).
+fixSteps' :: State -> State
+fixSteps' st =
+  st { numLine { steps = map (fixStep' st.numLine) st.numLine.steps } }
+
+fixStep'
+  :: forall r p.
+     { start :: Number
+     , end :: Number
+     , canvas :: { width :: Int | p } | r }
+  -> Step
+  -> Step
+fixStep' nl s = s { width = max s.width (minimumStep nl) }
